@@ -88,15 +88,7 @@ const COLLECTION_NAME = 'employees';
 export class EmployeeService {
   static async getAllEmployees(): Promise<Employee[]> {
     try {
-      // First try to get from localStorage (immediate response)
-      const localData = this.getFromLocalStorage();
-      if (localData.length > 0) {
-        // Return local data immediately, then try to sync with Firebase in background
-        this.syncWithFirebase(localData);
-        return localData;
-      }
-
-      // If no local data, try Firebase
+      // Try Firebase first (primary storage)
       if (db) {
         const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
         const employees = querySnapshot.docs.map(doc => ({
@@ -104,15 +96,16 @@ export class EmployeeService {
           ...doc.data()
         } as Employee));
 
-        // Save to localStorage for future use
+        // Sync to localStorage for offline access
         this.saveToLocalStorage(employees);
         return employees;
       }
 
-      // If neither localStorage nor Firebase available, return empty array
-      return [];
+      // Fallback to localStorage if Firebase unavailable
+      console.warn('Firebase unavailable, using localStorage fallback');
+      return this.getFromLocalStorage();
     } catch (error) {
-      console.error('Error obteniendo empleados:', error);
+      console.error('Error obteniendo empleados de Firestore:', error);
       // Return localStorage data as fallback
       return this.getFromLocalStorage();
     }
@@ -182,17 +175,24 @@ export class EmployeeService {
         employeeCode: employeeData.employeeCode || this.generateEmployeeCode()
       };
 
-      // Try Firebase first
+      // Try Firebase first (primary storage)
       if (db) {
         const docRef = await addDoc(collection(db, COLLECTION_NAME), {
           ...finalEmployeeData,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
+
+        // Sync to localStorage
+        const newEmployee = { ...finalEmployeeData, id: docRef.id };
+        const existingData = this.getFromLocalStorage();
+        existingData.push(newEmployee);
+        this.saveToLocalStorage(existingData);
+
         return docRef.id;
       }
 
-      // Fallback to localStorage
+      // Fallback to localStorage only
       const localId = Date.now().toString();
       const localEmployee = {
         ...finalEmployeeData,
@@ -208,22 +208,7 @@ export class EmployeeService {
       return localId;
     } catch (error) {
       console.error('Error creando empleado:', error);
-
-      // Always fallback to localStorage
-      const localId = Date.now().toString();
-      const localEmployee = {
-        ...employeeData,
-        id: localId,
-        employeeCode: employeeData.employeeCode || this.generateEmployeeCode(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      const existingData = this.getFromLocalStorage();
-      existingData.push(localEmployee);
-      this.saveToLocalStorage(existingData);
-
-      return localId;
+      throw error;
     }
   }
 
