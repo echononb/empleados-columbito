@@ -53,6 +53,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const register = async (email: string, password: string) => {
+    if (!auth) {
+      throw new Error('Firebase Auth no está configurado. Verifica la configuración.');
+    }
     await createUserWithEmailAndPassword(auth, email, password);
   };
 

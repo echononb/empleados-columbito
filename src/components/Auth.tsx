@@ -41,6 +41,15 @@ const Auth: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Auth error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+
+      // Check if Firebase is properly configured
+      if (!error.code) {
+        setError('Error de conexión. Verifica tu conexión a internet e intenta de nuevo.');
+        return;
+      }
+
       switch (error.code) {
         case 'auth/user-not-found':
           setError('Usuario no encontrado. Verifica tu email.');
@@ -57,8 +66,17 @@ const Auth: React.FC = () => {
         case 'auth/invalid-email':
           setError('Email inválido.');
           break;
+        case 'auth/network-request-failed':
+          setError('Error de conexión. Verifica tu conexión a internet.');
+          break;
+        case 'auth/too-many-requests':
+          setError('Demasiados intentos. Inténtalo más tarde.');
+          break;
+        case 'auth/operation-not-allowed':
+          setError('Esta operación no está permitida. Contacta al administrador.');
+          break;
         default:
-          setError('Error de autenticación. Inténtalo de nuevo.');
+          setError(`Error de autenticación: ${error.message || 'Inténtalo de nuevo.'}`);
       }
     } finally {
       setLoading(false);

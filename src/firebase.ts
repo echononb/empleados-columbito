@@ -18,6 +18,12 @@ const firebaseConfig = {
 const hasValidConfig = process.env.REACT_APP_FIREBASE_API_KEY &&
                       process.env.REACT_APP_FIREBASE_API_KEY !== "demo-api-key";
 
+console.log('Firebase config check:', {
+  hasValidConfig,
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY ? '***configured***' : 'not set',
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID
+});
+
 // Initialize Firebase only if we have valid config
 let app: any = null;
 let auth: any = null;
@@ -27,13 +33,18 @@ let functions: any = null;
 
 if (hasValidConfig) {
   try {
+    console.log('Initializing Firebase with config:', {
+      projectId: firebaseConfig.projectId,
+      authDomain: firebaseConfig.authDomain
+    });
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
     functions = getFunctions(app);
+    console.log('Firebase initialized successfully');
   } catch (error) {
-    console.warn('Firebase initialization failed:', error);
+    console.error('Firebase initialization failed:', error);
   }
 } else {
   console.warn('Firebase not configured. Using demo mode. Set REACT_APP_FIREBASE_* environment variables for full functionality.');
