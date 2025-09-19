@@ -9,117 +9,21 @@ const EmployeeList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string>('');
 
-  // Load employees instantly from localStorage or mock data
-  const loadEmployees = () => {
+  // Load employees from Firestore
+  const loadEmployees = async () => {
     try {
       setLoading(true);
       setError('');
 
-      // Load from localStorage immediately
-      const storedEmployees = localStorage.getItem('empleados-data');
-      if (storedEmployees) {
-        const parsedEmployees = JSON.parse(storedEmployees);
-        setEmployees(parsedEmployees);
-      } else {
-        // Show mock data immediately if no localStorage
-        const mockEmployees: Employee[] = [
-        {
-          id: '1',
-          employeeCode: 'EMP001',
-          dni: '12345678',
-          apellidoPaterno: 'García',
-          apellidoMaterno: 'López',
-          nombres: 'Juan Carlos',
-          puesto: 'Ingeniero Civil',
-          fechaIngreso: '2023-01-15',
-          fechaNacimiento: '1988-05-20',
-          fotoUrl: 'https://via.placeholder.com/200x200/3498db/ffffff?text=Juan+Carlos',
-          direccionActual: '',
-          referenciaDireccion: '',
-          regimenLaboral: '',
-          lugarNacimiento: { departamento: '', provincia: '', distrito: '' },
-          sexo: '',
-          numeroFotocheck: '',
-          telefonoCelular: '',
-          telefonoFijo: '',
-          estadoCivil: '',
-          afp: '',
-          email: '',
-          licenciaConducir: '',
-          categoriaLicencia: '',
-          banco: '',
-          numeroCuenta: '',
-          cci: '',
-          factorRH: '',
-          antecedentesPenales: false,
-          epp: { tallaCalzado: '', tallaVestimenta: '' },
-          informacionAcademica: { gradoInstruccion: '', nombreInstitucion: '', tipoInstitucion: '', carrera: '', anoEgreso: 0 },
-          estudiosComplementarios: [],
-          datosFamilia: { conyuge: { apellidosNombres: '', dni: '', fechaNacimiento: '', telefono: '', documentoVinculo: '' }, tieneHijos: false },
-          hijos: [],
-          assignedProjects: []
-        },
-        {
-          id: '2',
-          employeeCode: 'EMP002',
-          dni: '87654321',
-          apellidoPaterno: 'Martínez',
-          apellidoMaterno: 'Rodríguez',
-          nombres: 'María Elena',
-          puesto: 'Arquitecta',
-          fechaIngreso: '2023-03-20',
-          fechaNacimiento: '1995-08-15',
-          fotoUrl: 'https://via.placeholder.com/200x200/e74c3c/ffffff?text=María+Elena',
-          direccionActual: '',
-          referenciaDireccion: '',
-          regimenLaboral: '',
-          lugarNacimiento: { departamento: '', provincia: '', distrito: '' },
-          sexo: '',
-          numeroFotocheck: '',
-          telefonoCelular: '',
-          telefonoFijo: '',
-          estadoCivil: '',
-          afp: '',
-          email: '',
-          licenciaConducir: '',
-          categoriaLicencia: '',
-          banco: '',
-          numeroCuenta: '',
-          cci: '',
-          factorRH: '',
-          antecedentesPenales: false,
-          epp: { tallaCalzado: '', tallaVestimenta: '' },
-          informacionAcademica: { gradoInstruccion: '', nombreInstitucion: '', tipoInstitucion: '', carrera: '', anoEgreso: 0 },
-          estudiosComplementarios: [],
-          datosFamilia: { conyuge: { apellidosNombres: '', dni: '', fechaNacimiento: '', telefono: '', documentoVinculo: '' }, tieneHijos: false },
-          hijos: [],
-          assignedProjects: []
-        }
-      ];
-      setEmployees(mockEmployees);
+      const employeeData = await EmployeeService.getAllEmployees();
+      setEmployees(employeeData);
+    } catch (error) {
+      console.error('Error loading employees:', error);
+      setError('Error al cargar los empleados desde la base de datos');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-
-    // Try Firebase sync in background (non-blocking)
-    setTimeout(() => {
-      EmployeeService.getAllEmployees()
-        .then(employeeData => {
-          if (employeeData && employeeData.length > 0) {
-            setEmployees(employeeData);
-            localStorage.setItem('empleados-data', JSON.stringify(employeeData));
-          }
-        })
-        .catch(firebaseError => {
-          console.log('Firebase sync failed, keeping local data');
-        });
-    }, 100); // Small delay to ensure UI is rendered first
-  } catch (error) {
-    console.error('Error loading employees:', error);
-    setError('Error al cargar los empleados');
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     loadEmployees();

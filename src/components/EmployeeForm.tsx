@@ -76,119 +76,25 @@ const EmployeeForm: React.FC = () => {
     }
   }, [id, isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadEmployeeData = () => {
+  const loadEmployeeData = async () => {
     if (!id) return;
 
     setLoading(true);
 
-    // Load from localStorage first (instant)
-    const storedEmployees = localStorage.getItem('empleados-data');
-    if (storedEmployees) {
-      const employees = JSON.parse(storedEmployees);
-      const employeeData = employees.find((emp: Employee) => emp.id === id);
-
+    try {
+      const employeeData = await EmployeeService.getEmployeeById(id);
       if (employeeData) {
         setEmployee(employeeData);
-        setLoading(false);
-
-        // Try Firebase sync in background (non-blocking)
-        setTimeout(() => {
-          EmployeeService.getEmployeeById(id).then(firebaseData => {
-            if (firebaseData) {
-              setEmployee(firebaseData);
-              // Update localStorage with latest Firebase data
-              const updatedEmployees = employees.map((emp: Employee) =>
-                emp.id === id ? firebaseData : emp
-              );
-              localStorage.setItem('empleados-data', JSON.stringify(updatedEmployees));
-            }
-          }).catch(error => {
-            console.log('Firebase sync failed, keeping local data');
-          });
-        }, 100);
-
-        return;
-      }
-    }
-
-    // If not found in localStorage, try Firebase or show mock data
-    EmployeeService.getEmployeeById(id).then(employeeData => {
-      if (employeeData) {
-        setEmployee(employeeData);
-        // Save to localStorage for future use
-        const storedEmployees = localStorage.getItem('empleados-data') || '[]';
-        const employees = JSON.parse(storedEmployees);
-        employees.push(employeeData);
-        localStorage.setItem('empleados-data', JSON.stringify(employees));
       } else {
         console.error('Employee not found');
         navigate('/');
       }
-      setLoading(false);
-    }).catch(error => {
+    } catch (error) {
       console.error('Error loading employee:', error);
-      // Fallback to mock data for development
-      const mockEmployee: Employee = {
-        id: id,
-        employeeCode: 'EMP001',
-        dni: '12345678',
-        apellidoPaterno: 'García',
-        apellidoMaterno: 'López',
-        nombres: 'Juan Carlos',
-        puesto: 'Ingeniero Civil',
-        fechaIngreso: '2023-01-15',
-        fechaNacimiento: '1988-05-20',
-        fotoUrl: 'https://via.placeholder.com/200x200/3498db/ffffff?text=Juan+Carlos',
-        lugarNacimiento: {
-          departamento: 'Lima',
-          provincia: 'Lima',
-          distrito: 'Miraflores'
-        },
-        sexo: 'masculino',
-        telefonoCelular: '987654321',
-        estadoCivil: 'casado',
-        afp: 'Integra',
-        email: 'juan.garcia@email.com',
-        antecedentesPenales: false,
-        epp: {
-          tallaCalzado: '42',
-          tallaVestimenta: 'M'
-        },
-        informacionAcademica: {
-          gradoInstruccion: 'Universitario',
-          nombreInstitucion: 'Universidad Nacional',
-          tipoInstitucion: 'publica',
-          carrera: 'Ingeniería Civil',
-          anoEgreso: 2012
-        },
-        estudiosComplementarios: [],
-        datosFamilia: {
-          conyuge: {
-            apellidosNombres: '',
-            dni: '',
-            fechaNacimiento: '',
-            telefono: '',
-            documentoVinculo: ''
-          },
-          tieneHijos: false
-        },
-        hijos: [],
-        assignedProjects: [],
-        direccionActual: '',
-        referenciaDireccion: '',
-        regimenLaboral: '',
-        numeroFotocheck: '',
-        telefonoFijo: '',
-        licenciaConducir: '',
-        categoriaLicencia: '',
-        banco: '',
-        numeroCuenta: '',
-        cci: '',
-        factorRH: ''
-      };
-      setEmployee(mockEmployee);
+      setErrors({ general: 'Error al cargar los datos del empleado' });
+    } finally {
       setLoading(false);
-    });
+    }
   };
 
   const validateForm = (): boolean => {
@@ -230,43 +136,13 @@ const EmployeeForm: React.FC = () => {
 
     try {
       if (isEditing && id) {
-        // Update existing employee - save to localStorage first (instant)
-        const storedEmployees = localStorage.getItem('empleados-data');
-        if (storedEmployees) {
-          const employees = JSON.parse(storedEmployees);
-          const updatedEmployees = employees.map((emp: Employee) =>
-            emp.id === id ? { ...employee, id, updatedAt: new Date().toISOString() } : emp
-          );
-          localStorage.setItem('empleados-data', JSON.stringify(updatedEmployees));
-        }
-
+        // Update existing employee in Firestore
+        await EmployeeService.updateEmployee(id, employee);
         setSuccessMessage('Empleado actualizado exitosamente!');
-
-        // Try Firebase sync in background (non-blocking)
-        EmployeeService.updateEmployee(id, employee).catch(error => {
-          console.log('Firebase sync failed, but local save succeeded:', error);
-        });
-
       } else {
-        // Create new employee - save to localStorage first (instant)
-        const newEmployeeId = Date.now().toString();
-        const storedEmployees = localStorage.getItem('empleados-data') || '[]';
-        const employees = JSON.parse(storedEmployees);
-        const newEmployee = {
-          ...employee,
-          id: newEmployeeId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        employees.push(newEmployee);
-        localStorage.setItem('empleados-data', JSON.stringify(employees));
-
+        // Create new employee in Firestore
+        await EmployeeService.createEmployee(employee);
         setSuccessMessage('Empleado creado exitosamente!');
-
-        // Try Firebase sync in background (non-blocking)
-        EmployeeService.createEmployee(employee).catch(error => {
-          console.log('Firebase sync failed, but local save succeeded:', error);
-        });
       }
 
       // Show success message for 2 seconds, then navigate
