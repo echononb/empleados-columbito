@@ -194,31 +194,43 @@ const EmployeeForm: React.FC = () => {
 
     try {
       if (isEditing && id) {
-        // Update existing employee
-        await EmployeeService.updateEmployee(id, employee);
-        setSuccessMessage('Empleado actualizado exitosamente!');
-
-        // Update localStorage
+        // Update existing employee - save to localStorage first (instant)
         const storedEmployees = localStorage.getItem('empleados-data');
         if (storedEmployees) {
           const employees = JSON.parse(storedEmployees);
           const updatedEmployees = employees.map((emp: Employee) =>
-            emp.id === id ? { ...employee, id } : emp
+            emp.id === id ? { ...employee, id, updatedAt: new Date().toISOString() } : emp
           );
           localStorage.setItem('empleados-data', JSON.stringify(updatedEmployees));
         }
-      } else {
-        // Create new employee
-        const newEmployeeId = await EmployeeService.createEmployee(employee);
-        setSuccessMessage('Empleado creado exitosamente!');
-        console.log('Employee created with ID:', newEmployeeId);
 
-        // Add to localStorage
+        setSuccessMessage('Empleado actualizado exitosamente!');
+
+        // Try Firebase sync in background (non-blocking)
+        EmployeeService.updateEmployee(id, employee).catch(error => {
+          console.log('Firebase sync failed, but local save succeeded:', error);
+        });
+
+      } else {
+        // Create new employee - save to localStorage first (instant)
+        const newEmployeeId = Date.now().toString();
         const storedEmployees = localStorage.getItem('empleados-data') || '[]';
         const employees = JSON.parse(storedEmployees);
-        const newEmployee = { ...employee, id: newEmployeeId };
+        const newEmployee = {
+          ...employee,
+          id: newEmployeeId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
         employees.push(newEmployee);
         localStorage.setItem('empleados-data', JSON.stringify(employees));
+
+        setSuccessMessage('Empleado creado exitosamente!');
+
+        // Try Firebase sync in background (non-blocking)
+        EmployeeService.createEmployee(employee).catch(error => {
+          console.log('Firebase sync failed, but local save succeeded:', error);
+        });
       }
 
       // Show success message for 2 seconds, then navigate
