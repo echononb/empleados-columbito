@@ -76,19 +76,56 @@ const EmployeeForm: React.FC = () => {
     }
   }, [id, isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadEmployeeData = async () => {
+  const loadEmployeeData = () => {
     if (!id) return;
 
     setLoading(true);
-    try {
-      const employeeData = await EmployeeService.getEmployeeById(id);
+
+    // Load from localStorage first (instant)
+    const storedEmployees = localStorage.getItem('empleados-data');
+    if (storedEmployees) {
+      const employees = JSON.parse(storedEmployees);
+      const employeeData = employees.find((emp: Employee) => emp.id === id);
+
       if (employeeData) {
         setEmployee(employeeData);
+        setLoading(false);
+
+        // Try Firebase sync in background (non-blocking)
+        setTimeout(() => {
+          EmployeeService.getEmployeeById(id).then(firebaseData => {
+            if (firebaseData) {
+              setEmployee(firebaseData);
+              // Update localStorage with latest Firebase data
+              const updatedEmployees = employees.map((emp: Employee) =>
+                emp.id === id ? firebaseData : emp
+              );
+              localStorage.setItem('empleados-data', JSON.stringify(updatedEmployees));
+            }
+          }).catch(error => {
+            console.log('Firebase sync failed, keeping local data');
+          });
+        }, 100);
+
+        return;
+      }
+    }
+
+    // If not found in localStorage, try Firebase or show mock data
+    EmployeeService.getEmployeeById(id).then(employeeData => {
+      if (employeeData) {
+        setEmployee(employeeData);
+        // Save to localStorage for future use
+        const storedEmployees = localStorage.getItem('empleados-data') || '[]';
+        const employees = JSON.parse(storedEmployees);
+        employees.push(employeeData);
+        localStorage.setItem('empleados-data', JSON.stringify(employees));
       } else {
         console.error('Employee not found');
         navigate('/');
       }
-    } catch (error) {
+      setLoading(false);
+    }).catch(error => {
       console.error('Error loading employee:', error);
       // Fallback to mock data for development
       const mockEmployee: Employee = {
