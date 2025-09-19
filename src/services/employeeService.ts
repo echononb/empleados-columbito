@@ -91,36 +91,130 @@ export class EmployeeService {
   // Simple in-memory cache for better performance
   private static cache: { [key: string]: { data: Employee[]; timestamp: number } } = {};
   private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private static readonly LOCAL_STORAGE_KEY = 'empleados_columbito_employees';
 
   static async getAllEmployees(useCache: boolean = true): Promise<Employee[]> {
     try {
-      if (!db) {
-        throw new Error('Firebase not configured. Please set up Firebase environment variables.');
+      // Try Firebase first
+      if (db) {
+        // Check cache first
+        const cacheKey = 'all_employees';
+        const now = Date.now();
+
+        if (useCache && this.cache[cacheKey] && (now - this.cache[cacheKey].timestamp) < this.CACHE_DURATION) {
+          return this.cache[cacheKey].data;
+        }
+
+        // Fetch from Firestore
+        const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+        const employees = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Employee));
+
+        // Cache the result
+        this.cache[cacheKey] = { data: employees, timestamp: now };
+
+        // Also save to localStorage as backup
+        localStorage.setItem(this.LOCAL_STORAGE_KEY, JSON.stringify(employees));
+
+        return employees;
+      } else {
+        // Fallback to localStorage
+        console.warn('Firebase not configured, using localStorage');
+        return this.getEmployeesFromLocalStorage();
       }
-
-      // Check cache first
-      const cacheKey = 'all_employees';
-      const now = Date.now();
-
-      if (useCache && this.cache[cacheKey] && (now - this.cache[cacheKey].timestamp) < this.CACHE_DURATION) {
-        return this.cache[cacheKey].data;
-      }
-
-      // Fetch from Firestore
-      const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-      const employees = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Employee));
-
-      // Cache the result
-      this.cache[cacheKey] = { data: employees, timestamp: now };
-
-      return employees;
     } catch (error) {
-      console.error('Error getting employees:', error);
-      throw error;
+      console.error('Error getting employees from Firebase, falling back to localStorage:', error);
+      return this.getEmployeesFromLocalStorage();
     }
+  }
+
+  private static getEmployeesFromLocalStorage(): Employee[] {
+    try {
+      const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : this.getMockEmployees();
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+      return this.getMockEmployees();
+    }
+  }
+
+  private static getMockEmployees(): Employee[] {
+    return [
+      {
+        id: '1',
+        employeeCode: 'EMP001',
+        dni: '12345678',
+        apellidoPaterno: 'García',
+        apellidoMaterno: 'López',
+        nombres: 'Juan Carlos',
+        puesto: 'Ingeniero Civil',
+        fechaIngreso: '2023-01-15',
+        fechaNacimiento: '1988-05-20',
+        fotoUrl: 'https://via.placeholder.com/200x200/3498db/ffffff?text=Juan+Carlos',
+        direccionActual: '',
+        referenciaDireccion: '',
+        regimenLaboral: '',
+        lugarNacimiento: { departamento: '', provincia: '', distrito: '' },
+        sexo: '',
+        numeroFotocheck: '',
+        telefonoCelular: '',
+        telefonoFijo: '',
+        estadoCivil: '',
+        afp: '',
+        email: '',
+        licenciaConducir: '',
+        categoriaLicencia: '',
+        banco: '',
+        numeroCuenta: '',
+        cci: '',
+        factorRH: '',
+        antecedentesPenales: false,
+        epp: { tallaCalzado: '', tallaVestimenta: '' },
+        informacionAcademica: { gradoInstruccion: '', nombreInstitucion: '', tipoInstitucion: '', carrera: '', anoEgreso: 0 },
+        estudiosComplementarios: [],
+        datosFamilia: { conyuge: { apellidosNombres: '', dni: '', fechaNacimiento: '', telefono: '', documentoVinculo: '' }, tieneHijos: false },
+        hijos: [],
+        assignedProjects: []
+      },
+      {
+        id: '2',
+        employeeCode: 'EMP002',
+        dni: '87654321',
+        apellidoPaterno: 'Martínez',
+        apellidoMaterno: 'Rodríguez',
+        nombres: 'María Elena',
+        puesto: 'Arquitecta',
+        fechaIngreso: '2023-03-20',
+        fechaNacimiento: '1995-08-15',
+        fotoUrl: 'https://via.placeholder.com/200x200/e74c3c/ffffff?text=María+Elena',
+        direccionActual: '',
+        referenciaDireccion: '',
+        regimenLaboral: '',
+        lugarNacimiento: { departamento: '', provincia: '', distrito: '' },
+        sexo: '',
+        numeroFotocheck: '',
+        telefonoCelular: '',
+        telefonoFijo: '',
+        estadoCivil: '',
+        afp: '',
+        email: '',
+        licenciaConducir: '',
+        categoriaLicencia: '',
+        banco: '',
+        numeroCuenta: '',
+        cci: '',
+        factorRH: '',
+        antecedentesPenales: false,
+        epp: { tallaCalzado: '', tallaVestimenta: '' },
+        informacionAcademica: { gradoInstruccion: '', nombreInstitucion: '', tipoInstitucion: '', carrera: '', anoEgreso: 0 },
+        estudiosComplementarios: [],
+        datosFamilia: { conyuge: { apellidosNombres: '', dni: '', fechaNacimiento: '', telefono: '', documentoVinculo: '' }, tieneHijos: false },
+        hijos: [],
+        assignedProjects: []
+      }
+    ];
   }
 
   // Clear cache when data is modified
@@ -152,23 +246,72 @@ export class EmployeeService {
 
   static async createEmployee(employeeData: Omit<Employee, 'id'>): Promise<string> {
     try {
-      if (!db) {
-        throw new Error('Firebase not configured. Please set up Firebase environment variables.');
-      }
-      const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+      // Generate automatic employee code if not provided
+      const finalEmployeeData = {
         ...employeeData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
+        employeeCode: employeeData.employeeCode || this.generateEmployeeCode()
+      };
 
-      // Clear cache after creating
-      this.clearCache();
+      if (db) {
+        // Try Firebase first
+        const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+          ...finalEmployeeData,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
 
-      return docRef.id;
+        // Clear cache after creating
+        this.clearCache();
+
+        return docRef.id;
+      } else {
+        // Fallback to localStorage
+        console.warn('Firebase not configured, saving to localStorage');
+        return this.createEmployeeInLocalStorage(finalEmployeeData);
+      }
     } catch (error) {
-      console.error('Error creating employee:', error);
-      throw error;
+      console.error('Error creating employee in Firebase, falling back to localStorage:', error);
+      return this.createEmployeeInLocalStorage({
+        ...employeeData,
+        employeeCode: employeeData.employeeCode || this.generateEmployeeCode()
+      });
     }
+  }
+
+  private static createEmployeeInLocalStorage(employeeData: Omit<Employee, 'id'>): string {
+    const employees = this.getEmployeesFromLocalStorage();
+    const newId = Date.now().toString();
+
+    const newEmployee: Employee = {
+      ...employeeData,
+      id: newId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    employees.push(newEmployee);
+    localStorage.setItem(this.LOCAL_STORAGE_KEY, JSON.stringify(employees));
+
+    // Clear cache
+    this.clearCache();
+
+    return newId;
+  }
+
+  private static generateEmployeeCode(): string {
+    const employees = this.getEmployeesFromLocalStorage();
+    const existingCodes = employees.map(emp => emp.employeeCode).filter(code => code.startsWith('EMP'));
+
+    let nextNumber = 1;
+    if (existingCodes.length > 0) {
+      const numbers = existingCodes.map(code => {
+        const match = code.match(/EMP(\d+)/);
+        return match ? parseInt(match[1]) : 0;
+      });
+      nextNumber = Math.max(...numbers) + 1;
+    }
+
+    return `EMP${nextNumber.toString().padStart(3, '0')}`;
   }
 
   static async updateEmployee(id: string, employeeData: Partial<Employee>): Promise<void> {

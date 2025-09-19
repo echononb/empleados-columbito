@@ -287,7 +287,11 @@ const EmployeeForm: React.FC = () => {
                 name="employeeCode"
                 value={employee.employeeCode}
                 onChange={handleInputChange}
+                placeholder={isEditing ? employee.employeeCode : "Se generará automáticamente"}
+                disabled={!isEditing}
+                className={!isEditing ? 'auto-generated' : ''}
               />
+              {!isEditing && <small className="help-text">El código se genera automáticamente al guardar</small>}
             </div>
           </div>
 

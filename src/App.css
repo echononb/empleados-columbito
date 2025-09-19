@@ -597,6 +597,18 @@ main {
   font-size: 48px;
   margin-bottom: 10px;
 }
+.form-group input.auto-generated {
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.help-text {
+  color: #7f8c8d;
+  font-size: 12px;
+  margin-top: 4px;
+  font-style: italic;
+}
 
 .photo-placeholder p {
   margin: 10px 0 15px 0;

@@ -23,6 +23,12 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Check if Firebase is configured
+    if (!storage) {
+      setError('La carga de fotos estará disponible una vez que se configure Firebase. Por ahora puedes continuar sin foto.');
+      return;
+    }
+
     // Validate file type
     if (!file.type.startsWith('image/')) {
       setError('Por favor selecciona un archivo de imagen válido.');
