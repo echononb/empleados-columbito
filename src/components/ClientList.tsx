@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 interface Client {
   id?: string;
   name: string;
+  ruc: string;
   contactInfo: {
     email: string;
     phone: string;
@@ -30,6 +31,7 @@ const ClientList: React.FC = () => {
         {
           id: '1',
           name: 'Constructora Lima S.A.',
+          ruc: '20123456789',
           contactInfo: {
             email: 'contacto@constructoralima.com',
             phone: '+51 987 654 321',
@@ -40,6 +42,7 @@ const ClientList: React.FC = () => {
         {
           id: '2',
           name: 'Inmobiliaria Pacífico',
+          ruc: '20234567890',
           contactInfo: {
             email: 'info@inmobiliariapacífico.com.pe',
             phone: '+51 987 123 456',
@@ -50,6 +53,7 @@ const ClientList: React.FC = () => {
         {
           id: '3',
           name: 'Municipalidad de Lima',
+          ruc: '20345678901',
           contactInfo: {
             email: 'proyectos@munlima.gob.pe',
             phone: '+51 987 789 012',
@@ -139,6 +143,7 @@ const ClientList: React.FC = () => {
           <thead>
             <tr>
               <th>Nombre del Cliente</th>
+              <th>RUC</th>
               <th>Email</th>
               <th>Teléfono</th>
               <th>Dirección</th>
@@ -150,6 +155,7 @@ const ClientList: React.FC = () => {
             {filteredClients.map(client => (
               <tr key={client.id}>
                 <td className="client-name">{client.name}</td>
+                <td>{client.ruc}</td>
                 <td>{client.contactInfo.email}</td>
                 <td>{client.contactInfo.phone}</td>
                 <td className="client-address">{client.contactInfo.address}</td>
@@ -212,6 +218,7 @@ interface ClientModalProps {
 const ClientModal: React.FC<ClientModalProps> = ({ client, onSave, onClose, loading }) => {
   const [formData, setFormData] = useState<Omit<Client, 'id'>>({
     name: client?.name || '',
+    ruc: client?.ruc || '',
     contactInfo: {
       email: client?.contactInfo.email || '',
       phone: client?.contactInfo.phone || '',
@@ -227,6 +234,11 @@ const ClientModal: React.FC<ClientModalProps> = ({ client, onSave, onClose, load
 
     if (!formData.name.trim()) {
       newErrors.name = 'Nombre del cliente es requerido';
+    }
+    if (!formData.ruc.trim()) {
+      newErrors.ruc = 'RUC es requerido';
+    } else if (!/^\d{11}$/.test(formData.ruc)) {
+      newErrors.ruc = 'RUC debe tener 11 dígitos';
     }
     if (!formData.contactInfo.email.trim()) {
       newErrors.email = 'Email es requerido';
@@ -293,6 +305,22 @@ const ClientModal: React.FC<ClientModalProps> = ({ client, onSave, onClose, load
               required
             />
             {errors.name && <span className="error-message">{errors.name}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="ruc">RUC *</label>
+            <input
+              type="text"
+              id="ruc"
+              name="ruc"
+              value={formData.ruc}
+              onChange={handleInputChange}
+              maxLength={11}
+              placeholder="Ej: 20123456789"
+              className={errors.ruc ? 'error' : ''}
+              required
+            />
+            {errors.ruc && <span className="error-message">{errors.ruc}</span>}
           </div>
 
           <div className="form-group">

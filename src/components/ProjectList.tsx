@@ -5,6 +5,7 @@ interface Project {
   id?: string;
   name: string;
   description: string;
+  contrato: string;
   clientId: string;
   startDate: string;
   endDate: string;
@@ -32,6 +33,7 @@ const ProjectList: React.FC = () => {
           id: '1',
           name: 'Construcción Edificio Residencial',
           description: 'Proyecto de construcción de edificio de 10 pisos en Miraflores',
+          contrato: 'CONT-2024-001',
           clientId: 'client1',
           startDate: '2024-01-15',
           endDate: '2024-12-15',
@@ -42,6 +44,7 @@ const ProjectList: React.FC = () => {
           id: '2',
           name: 'Remodelación Centro Comercial',
           description: 'Remodelación completa del centro comercial Plaza Norte',
+          contrato: 'CONT-2024-002',
           clientId: 'client2',
           startDate: '2024-03-01',
           endDate: '2024-08-01',
@@ -52,6 +55,7 @@ const ProjectList: React.FC = () => {
           id: '3',
           name: 'Construcción Puente Vehicular',
           description: 'Proyecto de construcción de puente sobre el río Rímac',
+          contrato: 'CONT-2023-001',
           clientId: 'client3',
           startDate: '2023-06-01',
           endDate: '2024-06-01',
@@ -173,6 +177,7 @@ const ProjectList: React.FC = () => {
           <thead>
             <tr>
               <th>Nombre del Proyecto</th>
+              <th>Contrato</th>
               <th>Descripción</th>
               <th>Estado</th>
               <th>Fecha Inicio</th>
@@ -185,6 +190,7 @@ const ProjectList: React.FC = () => {
             {filteredProjects.map(project => (
               <tr key={project.id}>
                 <td className="project-name">{project.name}</td>
+                <td>{project.contrato}</td>
                 <td className="project-description">{project.description}</td>
                 <td>
                   <span
@@ -262,6 +268,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onSave, onClose, l
   const [formData, setFormData] = useState<Omit<Project, 'id'>>({
     name: project?.name || '',
     description: project?.description || '',
+    contrato: project?.contrato || '',
     clientId: project?.clientId || '',
     startDate: project?.startDate || '',
     endDate: project?.endDate || '',
@@ -276,6 +283,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onSave, onClose, l
 
     if (!formData.name.trim()) {
       newErrors.name = 'Nombre del proyecto es requerido';
+    }
+    if (!formData.contrato.trim()) {
+      newErrors.contrato = 'Número de contrato es requerido';
     }
     if (!formData.description.trim()) {
       newErrors.description = 'Descripción es requerida';
@@ -334,6 +344,21 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onSave, onClose, l
               required
             />
             {errors.name && <span className="error-message">{errors.name}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="contrato">Número de Contrato *</label>
+            <input
+              type="text"
+              id="contrato"
+              name="contrato"
+              value={formData.contrato}
+              onChange={handleInputChange}
+              placeholder="Ej: CONT-2024-001"
+              className={errors.contrato ? 'error' : ''}
+              required
+            />
+            {errors.contrato && <span className="error-message">{errors.contrato}</span>}
           </div>
 
           <div className="form-group">
