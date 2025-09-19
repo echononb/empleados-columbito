@@ -245,36 +245,39 @@ export class EmployeeService {
   }
 
   static async createEmployee(employeeData: Omit<Employee, 'id'>): Promise<string> {
-    try {
-      // Generate automatic employee code if not provided
-      const finalEmployeeData = {
-        ...employeeData,
-        employeeCode: employeeData.employeeCode || this.generateEmployeeCode()
-      };
+    // Generate automatic employee code if not provided
+    const finalEmployeeData = {
+      ...employeeData,
+      employeeCode: employeeData.employeeCode || this.generateEmployeeCode()
+    };
 
-      if (db) {
-        // Try Firebase first
-        const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+    if (db) {
+      // Try Firebase first with timeout
+      try {
+        const firebasePromise = addDoc(collection(db, COLLECTION_NAME), {
           ...finalEmployeeData,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
 
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Firebase timeout')), 5000)
+        );
+
+        const docRef = await Promise.race([firebasePromise, timeoutPromise]);
+
         // Clear cache after creating
         this.clearCache();
 
         return docRef.id;
-      } else {
-        // Fallback to localStorage
-        console.warn('Firebase not configured, saving to localStorage');
+      } catch (firebaseError) {
+        console.warn('Firebase create failed, falling back to localStorage:', firebaseError);
         return this.createEmployeeInLocalStorage(finalEmployeeData);
       }
-    } catch (error) {
-      console.error('Error creating employee in Firebase, falling back to localStorage:', error);
-      return this.createEmployeeInLocalStorage({
-        ...employeeData,
-        employeeCode: employeeData.employeeCode || this.generateEmployeeCode()
-      });
+    } else {
+      // Fallback to localStorage
+      console.warn('Firebase not configured, saving to localStorage');
+      return this.createEmployeeInLocalStorage(finalEmployeeData);
     }
   }
 
@@ -315,22 +318,48 @@ export class EmployeeService {
   }
 
   static async updateEmployee(id: string, employeeData: Partial<Employee>): Promise<void> {
-    try {
-      if (!db) {
-        throw new Error('Firebase not configured. Please set up Firebase environment variables.');
+    if (db) {
+      // Try Firebase first with timeout
+      try {
+        const firebasePromise = updateDoc(doc(db, COLLECTION_NAME, id), {
+          ...employeeData,
+          updatedAt: new Date().toISOString()
+        });
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Firebase timeout')), 5000)
+        );
+
+        await Promise.race([firebasePromise, timeoutPromise]);
+
+        // Clear cache after updating
+        this.clearCache();
+
+      } catch (firebaseError) {
+        console.warn('Firebase update failed, falling back to localStorage:', firebaseError);
+        this.updateEmployeeInLocalStorage(id, employeeData);
       }
-      const docRef = doc(db, COLLECTION_NAME, id);
-      await updateDoc(docRef, {
+    } else {
+      // Fallback to localStorage
+      console.warn('Firebase not configured, updating in localStorage');
+      this.updateEmployeeInLocalStorage(id, employeeData);
+    }
+  }
+
+  private static updateEmployeeInLocalStorage(id: string, employeeData: Partial<Employee>): void {
+    const employees = this.getEmployeesFromLocalStorage();
+    const index = employees.findIndex(emp => emp.id === id);
+
+    if (index !== -1) {
+      employees[index] = {
+        ...employees[index],
         ...employeeData,
         updatedAt: new Date().toISOString()
-      });
+      };
+      localStorage.setItem(this.LOCAL_STORAGE_KEY, JSON.stringify(employees));
 
-      // Clear cache after updating
+      // Clear cache
       this.clearCache();
-
-    } catch (error) {
-      console.error('Error updating employee:', error);
-      throw error;
     }
   }
 
