@@ -9,40 +9,19 @@ const EmployeeList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string>('');
 
-  // Load employees from localStorage first, then try Firebase in background
-  const loadEmployees = async () => {
+  // Load employees instantly from localStorage or mock data
+  const loadEmployees = () => {
     try {
       setLoading(true);
       setError('');
 
-      // First, try to load from localStorage immediately
+      // Load from localStorage immediately
       const storedEmployees = localStorage.getItem('empleados-data');
       if (storedEmployees) {
         const parsedEmployees = JSON.parse(storedEmployees);
         setEmployees(parsedEmployees);
-        setLoading(false);
-      }
-
-      // Then try Firebase in background (with short timeout)
-      try {
-        const employeeData = await Promise.race([
-          EmployeeService.getAllEmployees(),
-          new Promise<Employee[]>((_, reject) =>
-            setTimeout(() => reject(new Error('Firebase timeout')), 3000)
-          )
-        ]);
-
-        if (employeeData && employeeData.length > 0) {
-          setEmployees(employeeData);
-          localStorage.setItem('empleados-data', JSON.stringify(employeeData));
-        }
-      } catch (firebaseError) {
-        console.log('Firebase not available, using localStorage data');
-        // Keep localStorage data, don't show error for Firebase unavailability
-      }
-
-      // If no localStorage data, show mock data
-      if (!storedEmployees) {
+      } else {
+        // Show mock data immediately if no localStorage
         const mockEmployees: Employee[] = [
         {
           id: '1',
@@ -118,10 +97,29 @@ const EmployeeList: React.FC = () => {
         }
       ];
       setEmployees(mockEmployees);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    setLoading(false);
+
+    // Try Firebase sync in background (non-blocking)
+    setTimeout(() => {
+      EmployeeService.getAllEmployees()
+        .then(employeeData => {
+          if (employeeData && employeeData.length > 0) {
+            setEmployees(employeeData);
+            localStorage.setItem('empleados-data', JSON.stringify(employeeData));
+          }
+        })
+        .catch(firebaseError => {
+          console.log('Firebase sync failed, keeping local data');
+        });
+    }, 100); // Small delay to ensure UI is rendered first
+  } catch (error) {
+    console.error('Error loading employees:', error);
+    setError('Error al cargar los empleados');
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     loadEmployees();
