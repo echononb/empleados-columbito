@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Auth: React.FC = () => {
@@ -12,7 +13,15 @@ const Auth: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const { login, register, loginWithGoogle, resetPassword } = useAuth();
+  const { login, register, loginWithGoogle, resetPassword, user } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +33,7 @@ const Auth: React.FC = () => {
       if (isLogin) {
         await login(email, password);
         setSuccess('¡Inicio de sesión exitoso!');
+        // Redirect will happen automatically via useEffect when user state updates
       } else {
         if (password !== confirmPassword) {
           setError('Las contraseñas no coinciden');
@@ -80,6 +90,9 @@ const Auth: React.FC = () => {
           break;
         case 'auth/configuration-not-found':
           setError('Proyecto de Firebase no encontrado. Crea un proyecto en Firebase Console.');
+          break;
+        case 'auth/invalid-credential':
+          setError('Credenciales de Firebase inválidas. Verifica que copiaste correctamente la configuración de Firebase Console. Asegúrate de que Authentication esté habilitado.');
           break;
         default:
           setError(`Error de autenticación: ${error.message || 'Inténtalo de nuevo.'}`);

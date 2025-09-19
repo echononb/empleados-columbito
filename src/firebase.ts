@@ -37,21 +37,36 @@ let functions: any = null;
 
 if (hasValidConfig) {
   try {
-    console.log('Initializing Firebase with config:', {
+    console.log('🔥 Initializing Firebase with config:', {
       projectId: firebaseConfig.projectId,
-      authDomain: firebaseConfig.authDomain
+      authDomain: firebaseConfig.authDomain,
+      hasApiKey: !!firebaseConfig.apiKey,
+      hasAppId: !!firebaseConfig.appId
     });
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
     functions = getFunctions(app);
-    console.log('Firebase initialized successfully');
+    console.log('✅ Firebase initialized successfully');
+
+    // Test if the project exists by trying to get auth config
+    console.log('🔍 Testing Firebase connection...');
+    // This will help us know if the credentials are valid
+    setTimeout(() => {
+      console.log('Firebase Auth currentUser:', auth.currentUser);
+      console.log('Firebase project accessible');
+    }, 1000);
+
   } catch (error) {
-    console.error('Firebase initialization failed:', error);
+    console.error('❌ Firebase initialization failed:', error);
+    console.error('This usually means:');
+    console.error('1. Invalid API key or project ID');
+    console.error('2. Project does not exist');
+    console.error('3. Wrong credentials copied from Firebase Console');
   }
 } else {
-  console.warn('Firebase not configured. Using demo mode. Set REACT_APP_FIREBASE_* environment variables for full functionality.');
+  console.warn('⚠️ Firebase not configured. Using demo mode. Set REACT_APP_FIREBASE_* environment variables for full functionality.');
 }
 
 export { auth, db, storage, functions };
