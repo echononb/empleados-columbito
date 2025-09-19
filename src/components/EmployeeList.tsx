@@ -9,18 +9,41 @@ const EmployeeList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string>('');
 
-  // Optimized loadEmployees with useCallback
-  const loadEmployees = useCallback(async () => {
+  // Load employees from localStorage first, then try Firebase in background
+  const loadEmployees = async () => {
     try {
       setLoading(true);
       setError('');
-      const employeeData = await EmployeeService.getAllEmployees();
-      setEmployees(employeeData);
-    } catch (error) {
-      console.error('Error loading employees:', error);
-      setError('Error al cargar los empleados. Verifica tu conexión a Firebase.');
-      // Show mock data for demo purposes
-      const mockEmployees: Employee[] = [
+
+      // First, try to load from localStorage immediately
+      const storedEmployees = localStorage.getItem('empleados-data');
+      if (storedEmployees) {
+        const parsedEmployees = JSON.parse(storedEmployees);
+        setEmployees(parsedEmployees);
+        setLoading(false);
+      }
+
+      // Then try Firebase in background (with short timeout)
+      try {
+        const employeeData = await Promise.race([
+          EmployeeService.getAllEmployees(),
+          new Promise<Employee[]>((_, reject) =>
+            setTimeout(() => reject(new Error('Firebase timeout')), 3000)
+          )
+        ]);
+
+        if (employeeData && employeeData.length > 0) {
+          setEmployees(employeeData);
+          localStorage.setItem('empleados-data', JSON.stringify(employeeData));
+        }
+      } catch (firebaseError) {
+        console.log('Firebase not available, using localStorage data');
+        // Keep localStorage data, don't show error for Firebase unavailability
+      }
+
+      // If no localStorage data, show mock data
+      if (!storedEmployees) {
+        const mockEmployees: Employee[] = [
         {
           id: '1',
           employeeCode: 'EMP001',
@@ -98,11 +121,11 @@ const EmployeeList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     loadEmployees();
-  }, [loadEmployees]);
+  }, []);
 
   // Memoized filtered employees for better performance
   const filteredEmployees = useMemo(() => {

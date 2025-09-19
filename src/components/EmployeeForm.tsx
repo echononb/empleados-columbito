@@ -197,11 +197,28 @@ const EmployeeForm: React.FC = () => {
         // Update existing employee
         await EmployeeService.updateEmployee(id, employee);
         setSuccessMessage('Empleado actualizado exitosamente!');
+
+        // Update localStorage
+        const storedEmployees = localStorage.getItem('empleados-data');
+        if (storedEmployees) {
+          const employees = JSON.parse(storedEmployees);
+          const updatedEmployees = employees.map((emp: Employee) =>
+            emp.id === id ? { ...employee, id } : emp
+          );
+          localStorage.setItem('empleados-data', JSON.stringify(updatedEmployees));
+        }
       } else {
         // Create new employee
         const newEmployeeId = await EmployeeService.createEmployee(employee);
         setSuccessMessage('Empleado creado exitosamente!');
         console.log('Employee created with ID:', newEmployeeId);
+
+        // Add to localStorage
+        const storedEmployees = localStorage.getItem('empleados-data') || '[]';
+        const employees = JSON.parse(storedEmployees);
+        const newEmployee = { ...employee, id: newEmployeeId };
+        employees.push(newEmployee);
+        localStorage.setItem('empleados-data', JSON.stringify(employees));
       }
 
       // Show success message for 2 seconds, then navigate
