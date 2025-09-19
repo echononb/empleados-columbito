@@ -187,9 +187,8 @@ const EmployeeForm: React.FC = () => {
         factorRH: ''
       };
       setEmployee(mockEmployee);
-    } finally {
       setLoading(false);
-    }
+    });
   };
 
   const validateForm = (): boolean => {
