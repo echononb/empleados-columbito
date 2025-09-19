@@ -18,6 +18,9 @@ const ClientList: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Mock data for now - will be replaced with Firebase
   useEffect(() => {
@@ -71,6 +74,43 @@ const ClientList: React.FC = () => {
     );
   }, [clients, searchTerm]);
 
+  const handleCreateClient = () => {
+    setEditingClient(null);
+    setShowModal(true);
+  };
+
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
+    setShowModal(true);
+  };
+
+  const handleSaveClient = async (clientData: Omit<Client, 'id'>) => {
+    setSaving(true);
+    try {
+      if (editingClient) {
+        // Update existing client
+        setClients(prev => prev.map(c =>
+          c.id === editingClient.id ? { ...clientData, id: editingClient.id } : c
+        ));
+      } else {
+        // Create new client
+        const newClient: Client = {
+          ...clientData,
+          id: Date.now().toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        setClients(prev => [...prev, newClient]);
+      }
+      setShowModal(false);
+      setEditingClient(null);
+    } catch (error) {
+      console.error('Error saving client:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Cargando clientes...</div>;
   }
@@ -79,9 +119,9 @@ const ClientList: React.FC = () => {
     <div className="client-list">
       <div className="client-list-header">
         <h2>Lista de Clientes</h2>
-        <Link to="/clients/new" className="btn btn-primary">
+        <button onClick={handleCreateClient} className="btn btn-primary">
           Nuevo Cliente
-        </Link>
+        </button>
       </div>
 
       <div className="search-container">
@@ -115,9 +155,9 @@ const ClientList: React.FC = () => {
                 <td className="client-address">{client.contactInfo.address}</td>
                 <td>{client.projects.length} proyectos</td>
                 <td>
-                  <Link to={`/clients/${client.id}`} className="btn btn-secondary">
+                  <button onClick={() => handleEditClient(client)} className="btn btn-secondary">
                     Ver/Editar
-                  </Link>
+                  </button>
                 </td>
               </tr>
             ))}
@@ -144,6 +184,165 @@ const ClientList: React.FC = () => {
           <h3>{clients.filter(client => client.projects.length > 0).length}</h3>
           <p>Clientes Activos</p>
         </div>
+      </div>
+
+      {showModal && (
+        <ClientModal
+          client={editingClient}
+          onSave={handleSaveClient}
+          onClose={() => {
+            setShowModal(false);
+            setEditingClient(null);
+          }}
+          loading={saving}
+        />
+      )}
+    </div>
+  );
+};
+
+// Client Modal Component
+interface ClientModalProps {
+  client: Client | null;
+  onSave: (client: Omit<Client, 'id'>) => void;
+  onClose: () => void;
+  loading: boolean;
+}
+
+const ClientModal: React.FC<ClientModalProps> = ({ client, onSave, onClose, loading }) => {
+  const [formData, setFormData] = useState<Omit<Client, 'id'>>({
+    name: client?.name || '',
+    contactInfo: {
+      email: client?.contactInfo.email || '',
+      phone: client?.contactInfo.phone || '',
+      address: client?.contactInfo.address || ''
+    },
+    projects: client?.projects || []
+  });
+
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const validateForm = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Nombre del cliente es requerido';
+    }
+    if (!formData.contactInfo.email.trim()) {
+      newErrors.email = 'Email es requerido';
+    } else if (!/\S+@\S+\.\S+/.test(formData.contactInfo.email)) {
+      newErrors.email = 'Email no es válido';
+    }
+    if (!formData.contactInfo.phone.trim()) {
+      newErrors.phone = 'Teléfono es requerido';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    onSave(formData);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent as keyof typeof prev] as any,
+          [child]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>{client ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
+          <button onClick={onClose} className="modal-close">&times;</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label htmlFor="name">Nombre del Cliente *</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              className={errors.name ? 'error' : ''}
+              required
+            />
+            {errors.name && <span className="error-message">{errors.name}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="email">Email *</label>
+            <input
+              type="email"
+              id="email"
+              name="contactInfo.email"
+              value={formData.contactInfo.email}
+              onChange={handleInputChange}
+              className={errors.email ? 'error' : ''}
+              required
+            />
+            {errors.email && <span className="error-message">{errors.email}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="phone">Teléfono *</label>
+            <input
+              type="tel"
+              id="phone"
+              name="contactInfo.phone"
+              value={formData.contactInfo.phone}
+              onChange={handleInputChange}
+              className={errors.phone ? 'error' : ''}
+              required
+            />
+            {errors.phone && <span className="error-message">{errors.phone}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="address">Dirección</label>
+            <textarea
+              id="address"
+              name="contactInfo.address"
+              value={formData.contactInfo.address}
+              onChange={handleInputChange}
+              rows={3}
+            />
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
+              Cancelar
+            </button>
+            <button type="submit" disabled={loading} className="btn btn-primary">
+              {loading ? 'Guardando...' : (client ? 'Actualizar' : 'Crear Cliente')}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

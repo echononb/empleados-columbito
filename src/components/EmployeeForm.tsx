@@ -67,6 +67,7 @@ const EmployeeForm: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [successMessage, setSuccessMessage] = useState<string>('');
 
   useEffect(() => {
     if (isEditing) {
@@ -188,21 +189,29 @@ const EmployeeForm: React.FC = () => {
     }
 
     setLoading(true);
+    setSuccessMessage('');
+    setErrors({});
+
     try {
       if (isEditing && id) {
         // Update existing employee
         await EmployeeService.updateEmployee(id, employee);
-        console.log('Employee updated successfully');
+        setSuccessMessage('Empleado actualizado exitosamente!');
       } else {
         // Create new employee
         const newEmployeeId = await EmployeeService.createEmployee(employee);
-        console.log('Employee created successfully with ID:', newEmployeeId);
+        setSuccessMessage('Empleado creado exitosamente!');
+        console.log('Employee created with ID:', newEmployeeId);
       }
 
-      navigate('/');
+      // Show success message for 2 seconds, then navigate
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
+
     } catch (error) {
       console.error('Error saving employee:', error);
-      // For now, just log the error. In production, you might want to show a user-friendly error message
+      setErrors({ general: 'Error al guardar el empleado. Por favor, inténtalo de nuevo.' });
     } finally {
       setLoading(false);
     }
@@ -249,6 +258,18 @@ const EmployeeForm: React.FC = () => {
   return (
     <div className="employee-form">
       <h2>{isEditing ? 'Editar Empleado' : 'Nuevo Empleado'}</h2>
+
+      {successMessage && (
+        <div className="success-message">
+          ✅ {successMessage}
+        </div>
+      )}
+
+      {errors.general && (
+        <div className="error-message-general">
+          ❌ {errors.general}
+        </div>
+      )}
 
       <div className="photo-section">
         <PhotoUpload

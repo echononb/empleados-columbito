@@ -19,6 +19,9 @@ const ProjectList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [showModal, setShowModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Mock data for now - will be replaced with Firebase
   useEffect(() => {
@@ -90,6 +93,43 @@ const ProjectList: React.FC = () => {
     }
   };
 
+  const handleCreateProject = () => {
+    setEditingProject(null);
+    setShowModal(true);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setShowModal(true);
+  };
+
+  const handleSaveProject = async (projectData: Omit<Project, 'id'>) => {
+    setSaving(true);
+    try {
+      if (editingProject) {
+        // Update existing project
+        setProjects(prev => prev.map(p =>
+          p.id === editingProject.id ? { ...projectData, id: editingProject.id } : p
+        ));
+      } else {
+        // Create new project
+        const newProject: Project = {
+          ...projectData,
+          id: Date.now().toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        setProjects(prev => [...prev, newProject]);
+      }
+      setShowModal(false);
+      setEditingProject(null);
+    } catch (error) {
+      console.error('Error saving project:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Cargando proyectos...</div>;
   }
@@ -98,9 +138,9 @@ const ProjectList: React.FC = () => {
     <div className="project-list">
       <div className="project-list-header">
         <h2>Lista de Proyectos</h2>
-        <Link to="/projects/new" className="btn btn-primary">
+        <button onClick={handleCreateProject} className="btn btn-primary">
           Nuevo Proyecto
-        </Link>
+        </button>
       </div>
 
       <div className="filters-container">
@@ -158,9 +198,9 @@ const ProjectList: React.FC = () => {
                 <td>{new Date(project.endDate).toLocaleDateString('es-PE')}</td>
                 <td>{project.assignedEmployees.length} empleados</td>
                 <td>
-                  <Link to={`/projects/${project.id}`} className="btn btn-secondary">
+                  <button onClick={() => handleEditProject(project)} className="btn btn-secondary">
                     Ver/Editar
-                  </Link>
+                  </button>
                 </td>
               </tr>
             ))}
@@ -193,6 +233,176 @@ const ProjectList: React.FC = () => {
           <h3>{projects.length}</h3>
           <p>Total de Proyectos</p>
         </div>
+      </div>
+
+      {showModal && (
+        <ProjectModal
+          project={editingProject}
+          onSave={handleSaveProject}
+          onClose={() => {
+            setShowModal(false);
+            setEditingProject(null);
+          }}
+          loading={saving}
+        />
+      )}
+    </div>
+  );
+};
+
+// Project Modal Component
+interface ProjectModalProps {
+  project: Project | null;
+  onSave: (project: Omit<Project, 'id'>) => void;
+  onClose: () => void;
+  loading: boolean;
+}
+
+const ProjectModal: React.FC<ProjectModalProps> = ({ project, onSave, onClose, loading }) => {
+  const [formData, setFormData] = useState<Omit<Project, 'id'>>({
+    name: project?.name || '',
+    description: project?.description || '',
+    clientId: project?.clientId || '',
+    startDate: project?.startDate || '',
+    endDate: project?.endDate || '',
+    status: project?.status || 'active',
+    assignedEmployees: project?.assignedEmployees || []
+  });
+
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const validateForm = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Nombre del proyecto es requerido';
+    }
+    if (!formData.description.trim()) {
+      newErrors.description = 'Descripción es requerida';
+    }
+    if (!formData.startDate) {
+      newErrors.startDate = 'Fecha de inicio es requerida';
+    }
+    if (!formData.endDate) {
+      newErrors.endDate = 'Fecha de fin es requerida';
+    }
+    if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
+      newErrors.endDate = 'La fecha de fin debe ser posterior a la fecha de inicio';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    onSave(formData);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>{project ? 'Editar Proyecto' : 'Nuevo Proyecto'}</h3>
+          <button onClick={onClose} className="modal-close">&times;</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label htmlFor="name">Nombre del Proyecto *</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              className={errors.name ? 'error' : ''}
+              required
+            />
+            {errors.name && <span className="error-message">{errors.name}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="description">Descripción *</label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={3}
+              className={errors.description ? 'error' : ''}
+              required
+            />
+            {errors.description && <span className="error-message">{errors.description}</span>}
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="startDate">Fecha de Inicio *</label>
+              <input
+                type="date"
+                id="startDate"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleInputChange}
+                className={errors.startDate ? 'error' : ''}
+                required
+              />
+              {errors.startDate && <span className="error-message">{errors.startDate}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="endDate">Fecha de Fin *</label>
+              <input
+                type="date"
+                id="endDate"
+                name="endDate"
+                value={formData.endDate}
+                onChange={handleInputChange}
+                className={errors.endDate ? 'error' : ''}
+                required
+              />
+              {errors.endDate && <span className="error-message">{errors.endDate}</span>}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="status">Estado</label>
+            <select
+              id="status"
+              name="status"
+              value={formData.status}
+              onChange={handleInputChange}
+            >
+              <option value="active">Activo</option>
+              <option value="completed">Completado</option>
+              <option value="on-hold">En Espera</option>
+            </select>
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
+              Cancelar
+            </button>
+            <button type="submit" disabled={loading} className="btn btn-primary">
+              {loading ? 'Guardando...' : (project ? 'Actualizar' : 'Crear Proyecto')}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
