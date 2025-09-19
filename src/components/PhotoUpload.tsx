@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { EmployeeService } from '../services/employeeService';
 
 interface PhotoUploadProps {
   currentPhotoUrl?: string;
@@ -46,33 +47,47 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
   }, []);
 
   const uploadPhoto = useCallback(async (file: File) => {
-    if (!storage) {
-      setError('Firebase Storage no está configurado.');
-      return;
-    }
-
     setUploading(true);
+    setError('');
+
     try {
-      // Create unique filename
-      const timestamp = Date.now();
-      const filename = `employee_photos/${timestamp}_${file.name}`;
-      const storageRef = ref(storage, filename);
+      let photoUrl: string;
 
-      // Upload file with metadata for better performance
-      const metadata = {
-        contentType: file.type,
-        customMetadata: {
-          uploadedAt: new Date().toISOString(),
-          originalName: file.name
+      // Try Firebase Storage first
+      if (storage) {
+        try {
+          // Create unique filename
+          const timestamp = Date.now();
+          const filename = `employee_photos/${timestamp}_${file.name}`;
+          const storageRef = ref(storage, filename);
+
+          // Upload file with metadata for better performance
+          const metadata = {
+            contentType: file.type,
+            customMetadata: {
+              uploadedAt: new Date().toISOString(),
+              originalName: file.name
+            }
+          };
+
+          await uploadBytes(storageRef, file, metadata);
+
+          // Get download URL
+          photoUrl = await getDownloadURL(storageRef);
+        } catch (storageError) {
+          console.warn('Firebase Storage failed, using base64 fallback:', storageError);
+          // Fallback to base64 encoding
+          photoUrl = await EmployeeService.uploadPhotoWithFallback(file);
+          setError('Foto subida localmente (Firebase Storage no disponible). Los datos se guardarán localmente.');
         }
-      };
+      } else {
+        // No Firebase Storage available, use base64 fallback
+        console.warn('Firebase Storage not configured, using base64 fallback');
+        photoUrl = await EmployeeService.uploadPhotoWithFallback(file);
+        setError('Foto subida localmente (Firebase Storage no configurado). Los datos se guardarán localmente.');
+      }
 
-      await uploadBytes(storageRef, file, metadata);
-
-      // Get download URL
-      const downloadURL = await getDownloadURL(storageRef);
-
-      onPhotoUploaded(downloadURL);
+      onPhotoUploaded(photoUrl);
     } catch (error) {
       console.error('Error uploading photo:', error);
       setError('Error al subir la foto. Inténtalo de nuevo.');

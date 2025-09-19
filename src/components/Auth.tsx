@@ -75,6 +75,12 @@ const Auth: React.FC = () => {
         case 'auth/operation-not-allowed':
           setError('Esta operación no está permitida. Contacta al administrador.');
           break;
+        case 'auth/api-key-not-valid-please-pass-a-valid-api-key':
+          setError('Configuración de Firebase inválida. Actualiza las variables de entorno con tu configuración real de Firebase.');
+          break;
+        case 'auth/configuration-not-found':
+          setError('Proyecto de Firebase no encontrado. Crea un proyecto en Firebase Console.');
+          break;
         default:
           setError(`Error de autenticación: ${error.message || 'Inténtalo de nuevo.'}`);
       }

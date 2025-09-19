@@ -18,11 +18,15 @@ const firebaseConfig = {
 const hasValidConfig = process.env.REACT_APP_FIREBASE_API_KEY &&
                       process.env.REACT_APP_FIREBASE_API_KEY !== "demo-api-key";
 
-console.log('Firebase config check:', {
-  hasValidConfig,
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY ? '***configured***' : 'not set',
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID
-});
+console.log('🔥 Firebase Configuration Debug:');
+console.log('hasValidConfig:', hasValidConfig);
+console.log('API_KEY:', process.env.REACT_APP_FIREBASE_API_KEY ? '***configured***' : 'NOT SET');
+console.log('AUTH_DOMAIN:', process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || 'NOT SET');
+console.log('PROJECT_ID:', process.env.REACT_APP_FIREBASE_PROJECT_ID || 'NOT SET');
+console.log('STORAGE_BUCKET:', process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || 'NOT SET');
+console.log('MESSAGING_SENDER_ID:', process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || 'NOT SET');
+console.log('APP_ID:', process.env.REACT_APP_FIREBASE_APP_ID || 'NOT SET');
+console.log('Full firebaseConfig:', firebaseConfig);
 
 // Initialize Firebase only if we have valid config
 let app: any = null;
