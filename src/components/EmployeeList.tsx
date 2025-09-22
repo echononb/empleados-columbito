@@ -8,7 +8,8 @@ const EmployeeList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string>('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
   // Load employees from Firestore
   const loadEmployees = async () => {
@@ -26,25 +27,29 @@ const EmployeeList: React.FC = () => {
     }
   };
 
-  const handleDelete = async (employee: Employee) => {
+  const handleToggleActive = async (employee: Employee) => {
     if (!employee.id) return;
 
-    const confirmMessage = `¿Estás seguro de que quieres eliminar al empleado?\n\n${employee.apellidoPaterno} ${employee.apellidoMaterno}, ${employee.nombres}\nDNI: ${employee.dni}\nCódigo: ${employee.employeeCode}\n\nEsta acción no se puede deshacer.`;
+    const action = employee.isActive ? 'desactivar' : 'activar';
+    const confirmMessage = `¿Estás seguro de que quieres ${action} al empleado?\n\n${employee.apellidoPaterno} ${employee.apellidoMaterno}, ${employee.nombres}\nDNI: ${employee.dni}\nCódigo: ${employee.employeeCode}\n\nEl empleado ${employee.isActive ? 'no podrá acceder al sistema' : 'podrá acceder nuevamente'}.`;
 
     if (!window.confirm(confirmMessage)) {
       return;
     }
 
-    setDeletingId(employee.id);
+    setTogglingId(employee.id);
     try {
-      await EmployeeService.deleteEmployee(employee.id);
-      // Reload employees after deletion
+      await EmployeeService.updateEmployee(employee.id, {
+        isActive: !employee.isActive,
+        updatedAt: new Date().toISOString()
+      });
+      // Reload employees after status change
       await loadEmployees();
     } catch (error) {
-      console.error('Error deleting employee:', error);
-      setError('Error al eliminar el empleado. Inténtalo de nuevo.');
+      console.error('Error toggling employee status:', error);
+      setError(`Error al ${action} el empleado. Inténtalo de nuevo.`);
     } finally {
-      setDeletingId(null);
+      setTogglingId(null);
     }
   };
 
@@ -54,16 +59,26 @@ const EmployeeList: React.FC = () => {
 
   // Memoized filtered employees for better performance
   const filteredEmployees = useMemo(() => {
-    if (!searchTerm.trim()) return employees;
+    let filtered = employees;
 
-    const term = searchTerm.toLowerCase().trim();
-    return employees.filter(employee =>
-      employee.nombres.toLowerCase().includes(term) ||
-      employee.apellidoPaterno.toLowerCase().includes(term) ||
-      employee.dni.includes(term) ||
-      employee.employeeCode.toLowerCase().includes(term)
-    );
-  }, [employees, searchTerm]);
+    // Filter by active status
+    if (!showInactive) {
+      filtered = filtered.filter(employee => employee.isActive);
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(employee =>
+        employee.nombres.toLowerCase().includes(term) ||
+        employee.apellidoPaterno.toLowerCase().includes(term) ||
+        employee.dni.includes(term) ||
+        employee.employeeCode.toLowerCase().includes(term)
+      );
+    }
+
+    return filtered;
+  }, [employees, searchTerm, showInactive]);
 
   if (loading) {
     return <div className="loading">Cargando empleados...</div>;
@@ -78,14 +93,27 @@ const EmployeeList: React.FC = () => {
         </Link>
       </div>
 
-      <div className="search-container">
-        <input
-          type="text"
-          placeholder="Buscar por nombre, DNI o código..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
+      <div className="filters-container">
+        <div className="search-container">
+          <input
+            type="text"
+            placeholder="Buscar por nombre, DNI o código..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+        </div>
+
+        <div className="status-filter">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+            />
+            Mostrar empleados inactivos
+          </label>
+        </div>
       </div>
 
       {error && (
@@ -105,6 +133,7 @@ const EmployeeList: React.FC = () => {
               <th>Puesto</th>
               <th>Fecha Ingreso</th>
               <th>Edad</th>
+              <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -129,17 +158,22 @@ const EmployeeList: React.FC = () => {
                 <td>{employee.puesto}</td>
                 <td>{new Date(employee.fechaIngreso).toLocaleDateString('es-PE')}</td>
                 <td>{EmployeeService.calculateAge(employee.fechaNacimiento)}</td>
+                <td>
+                  <span className={`status-badge ${employee.isActive ? 'status-active' : 'status-inactive'}`}>
+                    {employee.isActive ? 'Activo' : 'Inactivo'}
+                  </span>
+                </td>
                 <td className="actions-cell">
                   <div className="action-buttons">
                     <Link to={`/employees/${employee.id}`} className="btn btn-secondary btn-small">
                       Ver/Editar
                     </Link>
                     <button
-                      onClick={() => handleDelete(employee)}
-                      disabled={deletingId === employee.id}
-                      className="btn btn-danger btn-small"
+                      onClick={() => handleToggleActive(employee)}
+                      disabled={togglingId === employee.id}
+                      className={`btn ${employee.isActive ? 'btn-warning' : 'btn-success'} btn-small`}
                     >
-                      {deletingId === employee.id ? 'Eliminando...' : 'Eliminar'}
+                      {togglingId === employee.id ? 'Cambiando...' : (employee.isActive ? 'Desactivar' : 'Activar')}
                     </button>
                   </div>
                 </td>
