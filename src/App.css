@@ -1294,6 +1294,29 @@ main {
   font-size: 14px;
 }
 
+/* Employee List Actions */
+.actions-cell {
+  min-width: 180px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1.2;
+  min-width: auto;
+}
+
+.employee-table .actions-cell .action-buttons {
+  justify-content: flex-start;
+  align-items: center;
+}
+
 /* Responsive Auth */
 @media (max-width: 480px) {
   .auth-card {

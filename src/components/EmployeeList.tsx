@@ -8,6 +8,7 @@ const EmployeeList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string>('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Load employees from Firestore
   const loadEmployees = async () => {
@@ -22,6 +23,28 @@ const EmployeeList: React.FC = () => {
       setError('Error al cargar los empleados desde la base de datos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (employee: Employee) => {
+    if (!employee.id) return;
+
+    const confirmMessage = `¿Estás seguro de que quieres eliminar al empleado?\n\n${employee.apellidoPaterno} ${employee.apellidoMaterno}, ${employee.nombres}\nDNI: ${employee.dni}\nCódigo: ${employee.employeeCode}\n\nEsta acción no se puede deshacer.`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setDeletingId(employee.id);
+    try {
+      await EmployeeService.deleteEmployee(employee.id);
+      // Reload employees after deletion
+      await loadEmployees();
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      setError('Error al eliminar el empleado. Inténtalo de nuevo.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -106,10 +129,19 @@ const EmployeeList: React.FC = () => {
                 <td>{employee.puesto}</td>
                 <td>{new Date(employee.fechaIngreso).toLocaleDateString('es-PE')}</td>
                 <td>{EmployeeService.calculateAge(employee.fechaNacimiento)}</td>
-                <td>
-                  <Link to={`/employees/${employee.id}`} className="btn btn-secondary">
-                    Ver/Editar
-                  </Link>
+                <td className="actions-cell">
+                  <div className="action-buttons">
+                    <Link to={`/employees/${employee.id}`} className="btn btn-secondary btn-small">
+                      Ver/Editar
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(employee)}
+                      disabled={deletingId === employee.id}
+                      className="btn btn-danger btn-small"
+                    >
+                      {deletingId === employee.id ? 'Eliminando...' : 'Eliminar'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
