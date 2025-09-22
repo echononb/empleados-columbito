@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { DatabaseCleaner } from '../utils/databaseCleaner';
 
 interface User {
   uid: string;
@@ -14,9 +15,17 @@ const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
+  const [dataStats, setDataStats] = useState({
+    employees: 0,
+    clients: 0,
+    projects: 0,
+    totalRecords: 0
+  });
 
   useEffect(() => {
     loadUsers();
+    loadDataStats();
   }, []);
 
   const loadUsers = () => {
@@ -55,6 +64,37 @@ const UserManagement: React.FC = () => {
 
     setUsers(usersWithRoles);
     setLoading(false);
+  };
+
+  const loadDataStats = async () => {
+    try {
+      const stats = await DatabaseCleaner.getDataStats();
+      setDataStats(stats);
+    } catch (error) {
+      console.error('Error loading data stats:', error);
+    }
+  };
+
+  const handleClearAllData = async () => {
+    if (!window.confirm('⚠️ ¿Estás seguro de que quieres ELIMINAR TODOS los datos?\n\nEsta acción no se puede deshacer.')) {
+      return;
+    }
+
+    if (!window.confirm('🚨 CONFIRMACIÓN FINAL: Se eliminarán empleados, clientes y proyectos de Firebase y localStorage.')) {
+      return;
+    }
+
+    setCleaning(true);
+    try {
+      await DatabaseCleaner.clearAllData();
+      await loadDataStats(); // Refresh stats
+      alert('✅ ¡Base de datos limpiada exitosamente!\n\nLa aplicación está lista para ingresar nuevos datos.');
+    } catch (error) {
+      console.error('Error clearing database:', error);
+      alert('❌ Error al limpiar la base de datos. Revisa la consola para más detalles.');
+    } finally {
+      setCleaning(false);
+    }
   };
 
   const handleRoleChange = async (userId: string, newRole: 'admin' | 'user') => {
@@ -171,6 +211,58 @@ const UserManagement: React.FC = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="database-management">
+        <h3>🗄️ Gestión de Base de Datos</h3>
+        <p className="description">
+          Herramientas para gestionar los datos de la aplicación. Usa estas funciones con precaución.
+        </p>
+
+        <div className="data-stats">
+          <div className="stat-card">
+            <h4>{dataStats.employees}</h4>
+            <p>Empleados</p>
+          </div>
+          <div className="stat-card">
+            <h4>{dataStats.clients}</h4>
+            <p>Clientes</p>
+          </div>
+          <div className="stat-card">
+            <h4>{dataStats.projects}</h4>
+            <p>Proyectos</p>
+          </div>
+          <div className="stat-card">
+            <h4>{dataStats.totalRecords}</h4>
+            <p>Total Registros</p>
+          </div>
+        </div>
+
+        <div className="database-actions">
+          <div className="action-warning">
+            <h4>⚠️ Zona de Peligro</h4>
+            <p>Estas acciones eliminarán datos permanentemente. No hay forma de recuperar la información una vez eliminada.</p>
+          </div>
+
+          <button
+            onClick={handleClearAllData}
+            disabled={cleaning}
+            className="btn btn-danger btn-large"
+          >
+            {cleaning ? '🧹 Limpiando...' : '🗑️ Limpiar Toda la Base de Datos'}
+          </button>
+
+          <div className="action-info">
+            <p><strong>¿Qué hace esta función?</strong></p>
+            <ul>
+              <li>Elimina todos los empleados de Firebase y localStorage</li>
+              <li>Elimina todos los clientes de Firebase y localStorage</li>
+              <li>Elimina todos los proyectos de Firebase y localStorage</li>
+              <li>Limpia roles de usuario almacenados localmente</li>
+              <li>Deja la aplicación lista para ingresar nuevos datos</li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       <div className="user-management-info">
