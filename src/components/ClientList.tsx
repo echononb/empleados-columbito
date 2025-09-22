@@ -1,19 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-
-interface Client {
-  id?: string;
-  name: string;
-  ruc: string;
-  contactInfo: {
-    email: string;
-    phone: string;
-    address: string;
-  };
-  projects: string[];
-  createdAt?: string;
-  updatedAt?: string;
-}
+import { ClientService, Client } from '../services/clientService';
 
 const ClientList: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -23,48 +10,21 @@ const ClientList: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Mock data for now - will be replaced with Firebase
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockClients: Client[] = [
-        {
-          id: '1',
-          name: 'Constructora Lima S.A.',
-          ruc: '20123456789',
-          contactInfo: {
-            email: 'contacto@constructoralima.com',
-            phone: '+51 987 654 321',
-            address: 'Av. Javier Prado 123, San Isidro, Lima'
-          },
-          projects: ['1', '2']
-        },
-        {
-          id: '2',
-          name: 'Inmobiliaria Pacífico',
-          ruc: '20234567890',
-          contactInfo: {
-            email: 'info@inmobiliariapacífico.com.pe',
-            phone: '+51 987 123 456',
-            address: 'Calle Los Olivos 456, Miraflores, Lima'
-          },
-          projects: ['2']
-        },
-        {
-          id: '3',
-          name: 'Municipalidad de Lima',
-          ruc: '20345678901',
-          contactInfo: {
-            email: 'proyectos@munlima.gob.pe',
-            phone: '+51 987 789 012',
-            address: 'Plaza Mayor s/n, Cercado de Lima'
-          },
-          projects: ['3']
-        }
-      ];
-      setClients(mockClients);
+  // Load clients from Firebase
+  const loadClients = async () => {
+    try {
+      setLoading(true);
+      const clientData = await ClientService.getAllClients();
+      setClients(clientData);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+
+  useEffect(() => {
+    loadClients();
   }, []);
 
   const filteredClients = useMemo(() => {
@@ -91,23 +51,17 @@ const ClientList: React.FC = () => {
   const handleSaveClient = async (clientData: Omit<Client, 'id'>) => {
     setSaving(true);
     try {
-      if (editingClient) {
+      if (editingClient && editingClient.id) {
         // Update existing client
-        setClients(prev => prev.map(c =>
-          c.id === editingClient.id ? { ...clientData, id: editingClient.id } : c
-        ));
+        await ClientService.updateClient(editingClient.id, clientData);
       } else {
         // Create new client
-        const newClient: Client = {
-          ...clientData,
-          id: Date.now().toString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        setClients(prev => [...prev, newClient]);
+        await ClientService.createClient(clientData);
       }
       setShowModal(false);
       setEditingClient(null);
+      // Reload clients
+      await loadClients();
     } catch (error) {
       console.error('Error saving client:', error);
     } finally {

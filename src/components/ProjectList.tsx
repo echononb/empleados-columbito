@@ -1,19 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-
-interface Project {
-  id?: string;
-  name: string;
-  description: string;
-  contrato: string;
-  clientId: string;
-  startDate: string;
-  endDate: string;
-  status: 'active' | 'completed' | 'on-hold';
-  assignedEmployees: string[];
-  createdAt?: string;
-  updatedAt?: string;
-}
+import { ProjectService, Project } from '../services/projectService';
 
 const ProjectList: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -24,48 +11,21 @@ const ProjectList: React.FC = () => {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Mock data for now - will be replaced with Firebase
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockProjects: Project[] = [
-        {
-          id: '1',
-          name: 'Construcción Edificio Residencial',
-          description: 'Proyecto de construcción de edificio de 10 pisos en Miraflores',
-          contrato: 'CONT-2024-001',
-          clientId: 'client1',
-          startDate: '2024-01-15',
-          endDate: '2024-12-15',
-          status: 'active',
-          assignedEmployees: ['1', '2']
-        },
-        {
-          id: '2',
-          name: 'Remodelación Centro Comercial',
-          description: 'Remodelación completa del centro comercial Plaza Norte',
-          contrato: 'CONT-2024-002',
-          clientId: 'client2',
-          startDate: '2024-03-01',
-          endDate: '2024-08-01',
-          status: 'on-hold',
-          assignedEmployees: ['1']
-        },
-        {
-          id: '3',
-          name: 'Construcción Puente Vehicular',
-          description: 'Proyecto de construcción de puente sobre el río Rímac',
-          contrato: 'CONT-2023-001',
-          clientId: 'client3',
-          startDate: '2023-06-01',
-          endDate: '2024-06-01',
-          status: 'completed',
-          assignedEmployees: ['2']
-        }
-      ];
-      setProjects(mockProjects);
+  // Load projects from Firebase
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      const projectData = await ProjectService.getAllProjects();
+      setProjects(projectData);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+
+  useEffect(() => {
+    loadProjects();
   }, []);
 
   const filteredProjects = useMemo(() => {
@@ -110,23 +70,17 @@ const ProjectList: React.FC = () => {
   const handleSaveProject = async (projectData: Omit<Project, 'id'>) => {
     setSaving(true);
     try {
-      if (editingProject) {
+      if (editingProject && editingProject.id) {
         // Update existing project
-        setProjects(prev => prev.map(p =>
-          p.id === editingProject.id ? { ...projectData, id: editingProject.id } : p
-        ));
+        await ProjectService.updateProject(editingProject.id, projectData);
       } else {
         // Create new project
-        const newProject: Project = {
-          ...projectData,
-          id: Date.now().toString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        setProjects(prev => [...prev, newProject]);
+        await ProjectService.createProject(projectData);
       }
       setShowModal(false);
       setEditingProject(null);
+      // Reload projects
+      await loadProjects();
     } catch (error) {
       console.error('Error saving project:', error);
     } finally {

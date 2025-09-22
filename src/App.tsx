@@ -5,12 +5,14 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Auth from './components/Auth';
 import ProtectedRoute from './components/ProtectedRoute';
 import EmployeeList from './components/EmployeeList';
-import EmployeeForm from './components/EmployeeForm';
+import EmployeeWizard from './components/EmployeeWizard';
 import ProjectList from './components/ProjectList';
 import ClientList from './components/ClientList';
+import Reports from './components/Reports';
+import UserManagement from './components/UserManagement';
 
 function AppHeader() {
-  const { user, logout } = useAuth();
+  const { user, logout, userRole } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -30,10 +32,17 @@ function AppHeader() {
               <li><a href="/">Empleados</a></li>
               <li><a href="/projects">Proyectos</a></li>
               <li><a href="/clients">Clientes</a></li>
+              {userRole === 'admin' && (
+                <>
+                  <li><a href="/reports">Reportes</a></li>
+                  <li><a href="/users">Usuarios</a></li>
+                </>
+              )}
             </ul>
           </nav>
           <div className="user-info">
             <span>{user.email}</span>
+            <span className="user-role">({userRole})</span>
             <button onClick={handleLogout} className="btn btn-secondary btn-small">
               Cerrar Sesión
             </button>
@@ -59,12 +68,12 @@ function AppContent() {
             } />
             <Route path="/employees/new" element={
               <ProtectedRoute>
-                <EmployeeForm />
+                <EmployeeWizard />
               </ProtectedRoute>
             } />
             <Route path="/employees/:id" element={
               <ProtectedRoute>
-                <EmployeeForm />
+                <EmployeeWizard />
               </ProtectedRoute>
             } />
             <Route path="/projects" element={
@@ -75,6 +84,16 @@ function AppContent() {
             <Route path="/clients" element={
               <ProtectedRoute>
                 <ClientList />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute requiredRole="admin">
+                <Reports />
+              </ProtectedRoute>
+            } />
+            <Route path="/users" element={
+              <ProtectedRoute requiredRole="admin">
+                <UserManagement />
               </ProtectedRoute>
             } />
           </Routes>

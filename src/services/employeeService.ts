@@ -79,6 +79,10 @@ export interface Employee {
     nombres: string;
   }>;
   assignedProjects: string[];
+  // New fields for progressive creation and status
+  isActive: boolean;
+  creationStep: number; // 1-6 for the 6 steps of creation
+  draftData?: Partial<Employee>; // For storing incomplete data
   createdAt?: string;
   updatedAt?: string;
 }

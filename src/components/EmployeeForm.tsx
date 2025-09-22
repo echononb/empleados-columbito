@@ -62,7 +62,10 @@ const EmployeeForm: React.FC = () => {
       tieneHijos: false
     },
     hijos: [],
-    assignedProjects: []
+    assignedProjects: [],
+    // New fields for progressive creation and status
+    isActive: true,
+    creationStep: 1
   });
 
   const [loading, setLoading] = useState(false);

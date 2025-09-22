@@ -14,11 +14,13 @@ import { auth } from '../firebase';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  userRole: 'admin' | 'user' | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  updateUserRole: (role: 'admin' | 'user') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,6 +40,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -72,14 +75,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await sendPasswordResetEmail(auth, email);
   };
 
+  const updateUserRole = async (role: 'admin' | 'user') => {
+    // In a real app, this would update the user's role in Firestore
+    // For now, we'll store it in localStorage
+    if (user) {
+      localStorage.setItem(`userRole_${user.uid}`, role);
+      setUserRole(role);
+    }
+  };
+
+  // Load user role from localStorage when user changes
+  useEffect(() => {
+    if (user) {
+      const storedRole = localStorage.getItem(`userRole_${user.uid}`);
+      // Default to 'user' if no role is set, or 'admin' for specific emails
+      const defaultRole = user.email === 'admin@columbito.com' ? 'admin' : 'user';
+      setUserRole(storedRole as 'admin' | 'user' || defaultRole);
+    } else {
+      setUserRole(null);
+    }
+  }, [user]);
+
   const value = {
     user,
     loading,
+    userRole,
     login,
     register,
     loginWithGoogle,
     logout,
-    resetPassword
+    resetPassword,
+    updateUserRole
   };
 
   return (
