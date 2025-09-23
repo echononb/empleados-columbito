@@ -121,8 +121,10 @@ empleados-columbito/
 - **Vista tabular** con paginación
 - **Búsqueda avanzada** por nombre, DNI, código
 - **Filtro de estado** (activos/inactivos)
-- **Acciones**: Ver/Editar, Activar/Desactivar
-- **Estados visuales** con badges
+- **Acciones**: Ver/Editar, 🚫 Desactivar/✅ Activar
+- **Estados visuales** con badges e indicadores
+- **Ayuda contextual** explicando funcionalidad
+- **Tooltips informativos** en botones
 
 #### **4. Gestión de Usuarios (`UserManagement.tsx`)**
 - **Roles**: Admin/User
