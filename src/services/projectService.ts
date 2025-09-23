@@ -198,6 +198,14 @@ export class ProjectService {
       if (project && !project.assignedEmployees.includes(employeeId)) {
         const updatedEmployees = [...project.assignedEmployees, employeeId];
         await this.updateProject(projectId, { assignedEmployees: updatedEmployees });
+
+        // Also update employee's assigned projects
+        const { EmployeeService } = await import('./employeeService');
+        const employee = await EmployeeService.getEmployeeById(employeeId);
+        if (employee && !employee.assignedProjects.includes(projectId)) {
+          const updatedProjects = [...employee.assignedProjects, projectId];
+          await EmployeeService.updateEmployee(employeeId, { assignedProjects: updatedProjects });
+        }
       }
     } catch (error) {
       console.error('Error asignando empleado al proyecto:', error);
@@ -211,6 +219,14 @@ export class ProjectService {
       if (project) {
         const updatedEmployees = project.assignedEmployees.filter(id => id !== employeeId);
         await this.updateProject(projectId, { assignedEmployees: updatedEmployees });
+
+        // Also update employee's assigned projects
+        const { EmployeeService } = await import('./employeeService');
+        const employee = await EmployeeService.getEmployeeById(employeeId);
+        if (employee) {
+          const updatedProjects = employee.assignedProjects.filter(id => id !== projectId);
+          await EmployeeService.updateEmployee(employeeId, { assignedProjects: updatedProjects });
+        }
       }
     } catch (error) {
       console.error('Error removiendo empleado del proyecto:', error);

@@ -134,6 +134,7 @@ const EmployeeList: React.FC = () => {
               <th>Fecha Ingreso</th>
               <th>Edad</th>
               <th>Estado</th>
+              <th>Proyectos</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -161,6 +162,11 @@ const EmployeeList: React.FC = () => {
                 <td>
                   <span className={`status-badge ${employee.isActive ? 'status-active' : 'status-inactive'}`}>
                     {employee.isActive ? 'Activo' : 'Inactivo'}
+                  </span>
+                </td>
+                <td>
+                  <span className="projects-count">
+                    {employee.assignedProjects?.length || 0} proyecto{employee.assignedProjects?.length !== 1 ? 's' : ''}
                   </span>
                 </td>
                 <td className="actions-cell">

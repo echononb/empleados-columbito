@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import ProjectAssignmentModal from './ProjectAssignmentModal';
 import { ProjectService, Project } from '../services/projectService';
 
 const ProjectList: React.FC = () => {
@@ -10,6 +11,8 @@ const ProjectList: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [assigningProject, setAssigningProject] = useState<Project | null>(null);
 
   // Load projects from Firebase
   const loadProjects = async () => {
@@ -65,6 +68,15 @@ const ProjectList: React.FC = () => {
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
     setShowModal(true);
+  };
+
+  const handleAssignEmployees = (project: Project) => {
+    setAssigningProject(project);
+    setShowAssignmentModal(true);
+  };
+
+  const handleAssignmentChange = () => {
+    loadProjects(); // Reload projects to show updated assignments
   };
 
   const handleSaveProject = async (projectData: Omit<Project, 'id'>) => {
@@ -157,10 +169,15 @@ const ProjectList: React.FC = () => {
                 <td>{new Date(project.startDate).toLocaleDateString('es-PE')}</td>
                 <td>{new Date(project.endDate).toLocaleDateString('es-PE')}</td>
                 <td>{project.assignedEmployees.length} empleados</td>
-                <td>
-                  <button onClick={() => handleEditProject(project)} className="btn btn-secondary">
-                    Ver/Editar
-                  </button>
+                <td className="actions-cell">
+                  <div className="action-buttons">
+                    <button onClick={() => handleAssignEmployees(project)} className="btn btn-info btn-small">
+                      👥 Asignar
+                    </button>
+                    <button onClick={() => handleEditProject(project)} className="btn btn-secondary btn-small">
+                      Ver/Editar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -204,6 +221,18 @@ const ProjectList: React.FC = () => {
             setEditingProject(null);
           }}
           loading={saving}
+        />
+      )}
+
+      {showAssignmentModal && (
+        <ProjectAssignmentModal
+          isOpen={showAssignmentModal}
+          onClose={() => {
+            setShowAssignmentModal(false);
+            setAssigningProject(null);
+          }}
+          project={assigningProject}
+          onAssignmentChange={handleAssignmentChange}
         />
       )}
     </div>
