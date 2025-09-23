@@ -72,6 +72,8 @@ empleados-columbito/
 │   │   ├── Auth.tsx          # Autenticación
 │   │   ├── EmployeeWizard.tsx # Wizard de empleados
 │   │   ├── EmployeeList.tsx   # Lista de empleados
+│   │   ├── ProjectList.tsx    # Lista de proyectos
+│   │   ├── ProjectAssignmentModal.tsx # Asignación empleados-proyectos
 │   │   ├── Reports.tsx        # Reportes y analytics
 │   │   └── UserManagement.tsx # Gestión de usuarios
 │   ├── 📁 contexts/          # Context API
@@ -181,7 +183,10 @@ empleados-columbito/
 ### **✅ Fase 3: Gestión de Clientes y Proyectos**
 - [x] CRUD completo para clientes
 - [x] CRUD completo para proyectos
-- [x] Asignación de empleados a proyectos
+- [x] **Asignación de empleados a proyectos** con interfaz intuitiva
+- [x] **Seguimiento bidireccional** de asignaciones (proyecto ↔ empleado)
+- [x] **Modal de asignaciones** con búsqueda y checkboxes
+- [x] **Visualización de asignaciones** en ambas vistas
 - [x] Estados de proyectos (activo, completado, en espera)
 
 ### **✅ Fase 4: Reportes y Analytics**
@@ -333,8 +338,17 @@ Dashboard → Empleados → "Agregar Empleado" → Completar Wizard → Guardar
 
 #### **2. Gestión de Proyectos**
 ```
-Dashboard → Proyectos → "Nuevo Proyecto" → Asignar empleados → Guardar
+Dashboard → Proyectos → "Nuevo Proyecto" → Crear proyecto → "Asignar Empleados" → Seleccionar empleados → Guardar
 ```
+
+#### **2.1 Asignación de Empleados a Proyectos**
+```
+Dashboard → Proyectos → Click "👥 Asignar" en cualquier proyecto → Buscar empleados → Marcar checkboxes → Guardar
+```
+- **Búsqueda en tiempo real** por nombre, DNI, código o puesto
+- **Selección múltiple** con checkboxes intuitivos
+- **Vista detallada** de información de empleados
+- **Sincronización bidireccional** (se actualiza tanto en proyectos como en empleados)
 
 #### **3. Reportes**
 ```
@@ -386,8 +400,10 @@ Dashboard → Usuarios → Gestionar roles → Limpiar BD si necesario
 
 #### **2. Reportes de Proyectos**
 - Proyectos activos/completados
-- Asignación de empleados
+- **Asignación de empleados** con detalles completos
+- **Empleados por proyecto** con información detallada
 - Rendimiento por proyecto
+- **Capacidad de proyectos** (empleados asignados vs disponibles)
 
 #### **3. Reportes de Clientes**
 - Base de datos completa

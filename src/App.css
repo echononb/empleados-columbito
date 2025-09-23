@@ -1315,6 +1315,15 @@ main {
 .employee-table .actions-cell .action-buttons {
   justify-content: flex-start;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.employee-table .actions-cell .btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 80px;
 }
 
 /* Status Badges */

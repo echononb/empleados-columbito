@@ -113,6 +113,9 @@ const EmployeeList: React.FC = () => {
             />
             Mostrar empleados inactivos
           </label>
+          <small className="help-text" style={{ display: 'block', marginTop: '4px', color: '#6c757d' }}>
+            💡 Usa "Desactivar" para quitar acceso al sistema sin perder datos
+          </small>
         </div>
       </div>
 
@@ -178,8 +181,9 @@ const EmployeeList: React.FC = () => {
                       onClick={() => handleToggleActive(employee)}
                       disabled={togglingId === employee.id}
                       className={`btn ${employee.isActive ? 'btn-warning' : 'btn-success'} btn-small`}
+                      title={employee.isActive ? 'Desactivar empleado (no podrá acceder al sistema)' : 'Activar empleado (podrá acceder al sistema)'}
                     >
-                      {togglingId === employee.id ? 'Cambiando...' : (employee.isActive ? 'Desactivar' : 'Activar')}
+                      {togglingId === employee.id ? '⏳ Cambiando...' : (employee.isActive ? '🚫 Desactivar' : '✅ Activar')}
                     </button>
                   </div>
                 </td>
