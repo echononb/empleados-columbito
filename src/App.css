@@ -1491,6 +1491,16 @@ main {
   font-style: italic;
 }
 
+/* Client name in project table */
+.client-name {
+  font-weight: 600;
+  color: #2c3e50;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Projects count in employee table */
 .projects-count {
   font-weight: 600;

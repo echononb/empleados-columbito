@@ -2,9 +2,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import ProjectAssignmentModal from './ProjectAssignmentModal';
 import { ProjectService, Project } from '../services/projectService';
+import { ClientService, Client } from '../services/clientService';
 
 const ProjectList: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -27,8 +29,19 @@ const ProjectList: React.FC = () => {
     }
   };
 
+  // Load clients from Firebase
+  const loadClients = async () => {
+    try {
+      const clientData = await ClientService.getAllClients();
+      setClients(clientData);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
+
   useEffect(() => {
     loadProjects();
+    loadClients();
   }, []);
 
   const filteredProjects = useMemo(() => {
@@ -58,6 +71,11 @@ const ProjectList: React.FC = () => {
       case 'on-hold': return 'En Espera';
       default: return status;
     }
+  };
+
+  const getClientName = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    return client ? client.name : 'Cliente no encontrado';
   };
 
   const handleCreateProject = () => {
@@ -143,8 +161,8 @@ const ProjectList: React.FC = () => {
           <thead>
             <tr>
               <th>Nombre del Proyecto</th>
+              <th>Cliente</th>
               <th>Contrato</th>
-              <th>Descripción</th>
               <th>Estado</th>
               <th>Fecha Inicio</th>
               <th>Fecha Fin</th>
@@ -156,8 +174,8 @@ const ProjectList: React.FC = () => {
             {filteredProjects.map(project => (
               <tr key={project.id}>
                 <td className="project-name">{project.name}</td>
+                <td className="client-name">{getClientName(project.clientId)}</td>
                 <td>{project.contrato}</td>
-                <td className="project-description">{project.description}</td>
                 <td>
                   <span
                     className="status-badge"
@@ -259,6 +277,21 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onSave, onClose, l
     assignedEmployees: project?.assignedEmployees || []
   });
 
+  // Get clients for the dropdown
+  const [availableClients, setAvailableClients] = useState<Client[]>([]);
+
+  useEffect(() => {
+    const loadClientsForModal = async () => {
+      try {
+        const clientData = await ClientService.getAllClients();
+        setAvailableClients(clientData);
+      } catch (error) {
+        console.error('Error loading clients for modal:', error);
+      }
+    };
+    loadClientsForModal();
+  }, []);
+
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   const validateForm = (): boolean => {
@@ -269,6 +302,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onSave, onClose, l
     }
     if (!formData.contrato.trim()) {
       newErrors.contrato = 'Número de contrato es requerido';
+    }
+    if (!formData.clientId.trim()) {
+      newErrors.clientId = 'Cliente es requerido';
     }
     if (!formData.description.trim()) {
       newErrors.description = 'Descripción es requerida';
@@ -342,6 +378,29 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onSave, onClose, l
               required
             />
             {errors.contrato && <span className="error-message">{errors.contrato}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="clientId">Cliente *</label>
+            <select
+              id="clientId"
+              name="clientId"
+              value={formData.clientId}
+              onChange={handleInputChange}
+              className={errors.clientId ? 'error' : ''}
+              required
+            >
+              <option value="">Seleccionar cliente...</option>
+              {availableClients.map(client => (
+                <option key={client.id} value={client.id}>
+                  {client.name} (RUC: {client.ruc})
+                </option>
+              ))}
+            </select>
+            {errors.clientId && <span className="error-message">{errors.clientId}</span>}
+            {availableClients.length === 0 && (
+              <small className="help-text">No hay clientes registrados. <a href="/clients" target="_blank" rel="noopener noreferrer">Crear cliente primero</a></small>
+            )}
           </div>
 
           <div className="form-group">
