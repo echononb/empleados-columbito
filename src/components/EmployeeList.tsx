@@ -57,6 +57,15 @@ const EmployeeList: React.FC = () => {
     loadEmployees();
   }, []);
 
+  // Helper function to properly display dates without timezone issues
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    // Create date object and ensure it's treated as local date
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    return date.toLocaleDateString('es-PE');
+  };
+
   // Memoized filtered employees for better performance
   const filteredEmployees = useMemo(() => {
     let filtered = employees;
@@ -160,7 +169,7 @@ const EmployeeList: React.FC = () => {
                 <td>{employee.dni}</td>
                 <td>{`${employee.apellidoPaterno} ${employee.apellidoMaterno}, ${employee.nombres}`}</td>
                 <td>{employee.puesto}</td>
-                <td>{new Date(employee.fechaIngreso).toLocaleDateString('es-PE')}</td>
+                <td>{formatDate(employee.fechaIngreso)}</td>
                 <td>{EmployeeService.calculateAge(employee.fechaNacimiento)}</td>
                 <td>
                   <span className={`status-badge ${employee.isActive ? 'status-active' : 'status-inactive'}`}>

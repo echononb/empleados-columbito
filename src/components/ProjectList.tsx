@@ -78,6 +78,15 @@ const ProjectList: React.FC = () => {
     return client ? client.name : 'Cliente no encontrado';
   };
 
+  // Helper function to properly display dates without timezone issues
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    // Create date object and ensure it's treated as local date
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    return date.toLocaleDateString('es-PE');
+  };
+
   const handleCreateProject = () => {
     setEditingProject(null);
     setShowModal(true);
@@ -184,8 +193,8 @@ const ProjectList: React.FC = () => {
                     {getStatusText(project.status)}
                   </span>
                 </td>
-                <td>{new Date(project.startDate).toLocaleDateString('es-PE')}</td>
-                <td>{new Date(project.endDate).toLocaleDateString('es-PE')}</td>
+                <td>{formatDate(project.startDate)}</td>
+                <td>{formatDate(project.endDate)}</td>
                 <td>{project.assignedEmployees.length} empleados</td>
                 <td className="actions-cell">
                   <div className="action-buttons">
