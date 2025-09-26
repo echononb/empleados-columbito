@@ -72,7 +72,7 @@ empleados-columbito/
 │   │   ├── Auth.tsx          # Autenticación
 │   │   ├── EmployeeWizard.tsx # Wizard de empleados
 │   │   ├── EmployeeList.tsx   # Lista de empleados
-│   │   ├── ProjectList.tsx    # Lista de proyectos
+│   │   ├── ProjectList.tsx    # Lista de proyectos con asignación de clientes
 │   │   ├── ProjectAssignmentModal.tsx # Asignación empleados-proyectos
 │   │   ├── Reports.tsx        # Reportes y analytics
 │   │   └── UserManagement.tsx # Gestión de usuarios
@@ -185,10 +185,12 @@ empleados-columbito/
 ### **✅ Fase 3: Gestión de Clientes y Proyectos**
 - [x] CRUD completo para clientes
 - [x] CRUD completo para proyectos
+- [x] **Asignación de proyectos a clientes** (cada proyecto pertenece a un cliente)
 - [x] **Asignación de empleados a proyectos** con interfaz intuitiva
 - [x] **Seguimiento bidireccional** de asignaciones (proyecto ↔ empleado)
 - [x] **Modal de asignaciones** con búsqueda y checkboxes
 - [x] **Visualización de asignaciones** en ambas vistas
+- [x] **Relaciones cliente-proyecto** claramente definidas
 - [x] Estados de proyectos (activo, completado, en espera)
 
 ### **✅ Fase 4: Reportes y Analytics**
@@ -340,10 +342,19 @@ Dashboard → Empleados → "Agregar Empleado" → Completar Wizard → Guardar
 
 #### **2. Gestión de Proyectos**
 ```
-Dashboard → Proyectos → "Nuevo Proyecto" → Crear proyecto → "Asignar Empleados" → Seleccionar empleados → Guardar
+Dashboard → Proyectos → "Nuevo Proyecto" → Seleccionar cliente → Crear proyecto → "Asignar Empleados" → Seleccionar empleados → Guardar
 ```
 
-#### **2.1 Asignación de Empleados a Proyectos**
+#### **2.1 Asignación de Proyectos a Clientes**
+```
+Dashboard → Proyectos → "Nuevo Proyecto" → Dropdown "Cliente" → Seleccionar cliente existente → Continuar
+```
+- **Relación uno-a-muchos**: Un cliente puede tener múltiples proyectos
+- **Campo obligatorio**: Todo proyecto debe tener un cliente asignado
+- **Validación automática**: No se puede crear proyecto sin cliente
+- **Visualización clara**: Nombre del cliente en tabla de proyectos
+
+#### **2.2 Asignación de Empleados a Proyectos**
 ```
 Dashboard → Proyectos → Click "👥 Asignar" en cualquier proyecto → Buscar empleados → Marcar checkboxes → Guardar
 ```
