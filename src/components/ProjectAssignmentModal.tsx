@@ -86,11 +86,26 @@ const ProjectAssignmentModal: React.FC<ProjectAssignmentModalProps> = ({
       // Employees to remove
       const toRemove = Array.from(currentAssigned).filter(id => !newAssigned.has(id));
 
-      // Execute assignments
-      await Promise.all([
-        ...toAdd.map(employeeId => ProjectService.assignEmployeeToProject(project.id!, employeeId)),
-        ...toRemove.map(employeeId => ProjectService.removeEmployeeFromProject(project.id!, employeeId))
-      ]);
+      console.log('Asignaciones a realizar:', { toAdd, toRemove });
+
+      // Execute assignments sequentially to avoid race conditions
+      for (const employeeId of toAdd) {
+        try {
+          await ProjectService.assignEmployeeToProject(project.id!, employeeId);
+          console.log(`Empleado ${employeeId} asignado correctamente`);
+        } catch (error) {
+          console.error(`Error asignando empleado ${employeeId}:`, error);
+        }
+      }
+
+      for (const employeeId of toRemove) {
+        try {
+          await ProjectService.removeEmployeeFromProject(project.id!, employeeId);
+          console.log(`Empleado ${employeeId} removido correctamente`);
+        } catch (error) {
+          console.error(`Error removiendo empleado ${employeeId}:`, error);
+        }
+      }
 
       onAssignmentChange();
       onClose();

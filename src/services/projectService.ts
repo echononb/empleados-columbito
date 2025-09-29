@@ -194,10 +194,14 @@ export class ProjectService {
 
   static async assignEmployeeToProject(projectId: string, employeeId: string): Promise<void> {
     try {
+      // Always get fresh project data to avoid stale data issues with multiple assignments
       const project = await this.getProjectById(projectId);
-      if (project && !project.assignedEmployees.includes(employeeId)) {
-        const updatedEmployees = [...project.assignedEmployees, employeeId];
-        await this.updateProject(projectId, { assignedEmployees: updatedEmployees });
+      if (project) {
+        // Check if employee is already assigned (double-check with fresh data)
+        if (!project.assignedEmployees.includes(employeeId)) {
+          const updatedEmployees = [...project.assignedEmployees, employeeId];
+          await this.updateProject(projectId, { assignedEmployees: updatedEmployees });
+        }
 
         // Also update employee's assigned projects
         const { EmployeeService } = await import('./employeeService');
