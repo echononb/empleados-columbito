@@ -667,6 +667,51 @@ export class UserService {
       return { registered: [], pending: [] };
     }
   }
+
+  // Debug function to manually test pending role application
+  static async debugPendingRoleApplication(email: string): Promise<void> {
+    console.log('=== DEBUG PENDING ROLE APPLICATION ===');
+    console.log('Testing email:', email);
+
+    try {
+      // Check if pending role exists in Firebase
+      if (db) {
+        const emailKey = email.toLowerCase();
+        const pendingRoleRef = doc(db, this.PENDING_ROLES_COLLECTION, emailKey);
+        const pendingRoleSnap = await getDoc(pendingRoleRef);
+
+        console.log('Firebase pending role exists:', pendingRoleSnap.exists());
+        if (pendingRoleSnap.exists()) {
+          console.log('Firebase pending role data:', pendingRoleSnap.data());
+        }
+      }
+
+      // Check localStorage
+      const localKey = `pending_role_${email.toLowerCase()}`;
+      const localPendingRole = localStorage.getItem(localKey);
+      console.log('localStorage key exists:', !!localPendingRole);
+      if (localPendingRole) {
+        console.log('localStorage pending role data:', JSON.parse(localPendingRole));
+      }
+
+      // Check master list
+      const masterListKey = 'pending_roles_list';
+      const masterList = localStorage.getItem(masterListKey);
+      console.log('Master list exists:', !!masterList);
+      if (masterList) {
+        const parsedList = JSON.parse(masterList);
+        const foundInMaster = parsedList.find((item: any) => item.email === email.toLowerCase());
+        console.log('Found in master list:', !!foundInMaster);
+        if (foundInMaster) {
+          console.log('Master list item:', foundInMaster);
+        }
+      }
+
+      console.log('=== DEBUG COMPLETE ===');
+    } catch (error) {
+      console.error('Error in debug function:', error);
+    }
+  }
 }
 
 export default UserService;

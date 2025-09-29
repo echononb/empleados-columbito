@@ -459,6 +459,8 @@ const UserManagement: React.FC = () => {
           <h3>⏳ Asignaciones de Rol Pendientes</h3>
           <p className="pending-info">
             Estos roles serán asignados automáticamente cuando los usuarios inicien sesión por primera vez.
+            Si un usuario ya inició sesión pero no recibió el rol, puede deberse a problemas de sincronización.
+            Usa el botón 🔍 para diagnosticar problemas específicos.
           </p>
           <table className="user-table">
             <thead>
@@ -484,6 +486,19 @@ const UserManagement: React.FC = () => {
                   <td>{formatDate(pending.assignedAt)}</td>
                   <td>
                     <div className="action-buttons">
+                      <button
+                        onClick={() => {
+                          // Import UserService dynamically to avoid circular imports
+                          import('../services/userService').then(({ UserService }) => {
+                            UserService.debugPendingRoleApplication(pending.email);
+                            alert(`Debug info logged to console for ${pending.email}. Check browser console for details.`);
+                          });
+                        }}
+                        className="btn btn-secondary btn-small"
+                        title="Debug pending role application"
+                      >
+                        🔍
+                      </button>
                       <button
                         onClick={() => handleRemovePendingRole(pending.email)}
                         disabled={saving === pending.email}
