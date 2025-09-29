@@ -1564,6 +1564,75 @@ main {
   gap: 20px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Pending Info */
+.pending-info {
+  background: #e8f4fd;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 15px;
+  color: #2c5aa0;
+  font-size: 14px;
+}
+
+/* No Users State */
+.no-users {
+  text-align: center;
+  padding: 40px 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.no-users-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.6;
+}
+
+.no-users h3 {
+  color: #6c757d;
+  margin: 0 0 10px 0;
+  font-size: 18px;
+}
+
+.no-users p {
+  color: #6c757d;
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Form Info */
+.form-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #e8f4fd;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: #2c5aa0;
+}
+
+.form-info .info-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.form-info p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 /* Firebase Warning */
 .firebase-warning {
   display: flex;

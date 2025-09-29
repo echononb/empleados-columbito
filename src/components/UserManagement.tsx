@@ -6,9 +6,18 @@ import { auth } from '../firebase';
 
 interface User extends UserProfile {}
 
+interface PendingUser {
+  email: string;
+  role: 'admin' | 'user';
+  assignedAt: string;
+  assignedBy?: string;
+  type: 'pending';
+}
+
 const UserManagement: React.FC = () => {
   const { user: currentUser, updateUserRole } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [cleaning, setCleaning] = useState(false);
@@ -20,6 +29,7 @@ const UserManagement: React.FC = () => {
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -29,13 +39,16 @@ const UserManagement: React.FC = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      // Load real users from Firebase Auth via UserService
-      const userProfiles = await UserService.getAllUserProfiles();
-      setUsers(userProfiles);
+      // Load both registered and pending users
+      const { registered, pending } = await UserService.getAllManageableUsers();
+
+      setUsers(registered);
+      setPendingUsers(pending.map(p => ({ ...p, type: 'pending' as const })));
     } catch (error) {
       console.error('Error loading users:', error);
-      // Fallback to empty array if Firebase is not available
+      // Fallback to empty arrays if Firebase is not available
       setUsers([]);
+      setPendingUsers([]);
     } finally {
       setLoading(false);
     }
@@ -207,6 +220,45 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleAssignRole = async (emailData: { email: string; role: 'admin' | 'user' }) => {
+    setSaving('assign');
+    try {
+      await UserService.assignRoleToEmail(emailData.email, emailData.role, currentUser?.uid);
+
+      // Reload users to show the new pending assignment
+      await loadUsers();
+
+      alert('Rol asignado exitosamente. El usuario tendrá este rol cuando inicie sesión.');
+      setShowAssignRoleModal(false);
+    } catch (error: any) {
+      console.error('Error assigning role:', error);
+      alert('Error al asignar el rol: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleRemovePendingRole = async (email: string) => {
+    if (!window.confirm('¿Estás seguro de que quieres remover esta asignación de rol pendiente?')) {
+      return;
+    }
+
+    setSaving(email);
+    try {
+      await UserService.removePendingRole(email);
+
+      // Update local state
+      setPendingUsers(prev => prev.filter(p => p.email !== email));
+
+      alert('Asignación de rol removida exitosamente.');
+    } catch (error) {
+      console.error('Error removing pending role:', error);
+      alert('Error al remover la asignación de rol.');
+    } finally {
+      setSaving(null);
+    }
+  };
+
   const getRoleBadgeColor = (role: string) => {
     return role === 'admin' ? '#e74c3c' : '#3498db';
   };
@@ -252,101 +304,175 @@ const UserManagement: React.FC = () => {
             </div>
           )}
         </div>
-        <button
-          onClick={() => setShowCreateUserModal(true)}
-          className="btn btn-primary"
-          disabled={!auth}
-          title={!auth ? 'Firebase no configurado' : 'Crear nuevo usuario'}
-        >
-          ➕ Crear Usuario
-        </button>
+        <div className="header-actions">
+          <button
+            onClick={() => setShowAssignRoleModal(true)}
+            className="btn btn-secondary"
+            title="Asignar rol a email (para usuarios que aún no han iniciado sesión)"
+          >
+            👤 Asignar Rol
+          </button>
+          <button
+            onClick={() => setShowCreateUserModal(true)}
+            className="btn btn-primary"
+            disabled={!auth}
+            title={!auth ? 'Firebase no configurado' : 'Crear nuevo usuario con contraseña'}
+          >
+            ➕ Crear Usuario
+          </button>
+        </div>
       </div>
 
       <div className="user-stats">
         <div className="stat-card">
-          <h4>{users.length}</h4>
+          <h4>{users.length + pendingUsers.length}</h4>
           <p>Total Usuarios</p>
         </div>
         <div className="stat-card">
-          <h4>{users.filter(u => u.role === 'admin').length}</h4>
+          <h4>{users.filter(u => u.role === 'admin').length + pendingUsers.filter(p => p.role === 'admin').length}</h4>
           <p>Administradores</p>
         </div>
         <div className="stat-card">
-          <h4>{users.filter(u => u.role === 'user').length}</h4>
+          <h4>{users.filter(u => u.role === 'user').length + pendingUsers.filter(p => p.role === 'user').length}</h4>
           <p>Usuarios Regulares</p>
+        </div>
+        <div className="stat-card">
+          <h4>{pendingUsers.length}</h4>
+          <p>Asignaciones Pendientes</p>
         </div>
       </div>
 
-      <div className="user-table-container">
-        <table className="user-table">
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Estado</th>
-              <th>Rol Actual</th>
-              <th>Último Acceso</th>
-              <th>Fecha de Creación</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(user => (
-              <tr key={user.uid}>
-                <td className="user-email">
-                  {user.email}
-                  {user.uid === currentUser?.uid && <span className="current-user-badge">(Tú)</span>}
-                </td>
-                <td>
-                  <span className={`status-badge ${user.isActive ? 'status-active' : 'status-inactive'}`}>
-                    {user.isActive ? 'Activo' : 'Inactivo'}
-                  </span>
-                </td>
-                <td>
-                  <span
-                    className="role-badge"
-                    style={{ backgroundColor: getRoleBadgeColor(user.role) }}
-                  >
-                    {user.role === 'admin' ? 'Administrador' : 'Usuario'}
-                  </span>
-                </td>
-                <td>{user.lastLogin ? formatDate(user.lastLogin) : 'Nunca'}</td>
-                <td>{user.createdAt ? formatDate(user.createdAt) : 'N/A'}</td>
-                <td>
-                  <div className="action-buttons">
-                    <button
-                      onClick={() => handleToggleUserStatus(user.uid)}
-                      disabled={saving === user.uid || user.uid === currentUser?.uid}
-                      className={`btn btn-small ${user.isActive ? 'btn-warning' : 'btn-success'}`}
-                      title={user.isActive ? 'Desactivar usuario' : 'Activar usuario'}
-                    >
-                      {user.isActive ? '🚫' : '✅'}
-                    </button>
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user.uid, e.target.value as 'admin' | 'user')}
-                      disabled={saving === user.uid}
-                      className="role-select"
-                      title="Cambiar rol"
-                    >
-                      <option value="user">👤 Usuario</option>
-                      <option value="admin">👑 Admin</option>
-                    </select>
-                    <button
-                      onClick={() => setShowDeleteConfirm(user.uid)}
-                      disabled={saving === user.uid || user.uid === currentUser?.uid}
-                      className="btn btn-danger btn-small"
-                      title="Eliminar usuario"
-                    >
-                      🗑️
-                    </button>
-                    {saving === user.uid && <span className="saving-indicator">Guardando...</span>}
-                  </div>
-                </td>
+      {/* Registered Users Table */}
+      {users.length > 0 && (
+        <div className="user-table-container">
+          <h3>👥 Usuarios Registrados</h3>
+          <table className="user-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Estado</th>
+                <th>Rol Actual</th>
+                <th>Último Acceso</th>
+                <th>Fecha de Creación</th>
+                <th>Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {users.map(user => (
+                <tr key={user.uid}>
+                  <td className="user-email">
+                    {user.email}
+                    {user.uid === currentUser?.uid && <span className="current-user-badge">(Tú)</span>}
+                  </td>
+                  <td>
+                    <span className={`status-badge ${user.isActive ? 'status-active' : 'status-inactive'}`}>
+                      {user.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className="role-badge"
+                      style={{ backgroundColor: getRoleBadgeColor(user.role) }}
+                    >
+                      {user.role === 'admin' ? 'Administrador' : 'Usuario'}
+                    </span>
+                  </td>
+                  <td>{user.lastLogin ? formatDate(user.lastLogin) : 'Nunca'}</td>
+                  <td>{user.createdAt ? formatDate(user.createdAt) : 'N/A'}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button
+                        onClick={() => handleToggleUserStatus(user.uid)}
+                        disabled={saving === user.uid || user.uid === currentUser?.uid}
+                        className={`btn btn-small ${user.isActive ? 'btn-warning' : 'btn-success'}`}
+                        title={user.isActive ? 'Desactivar usuario' : 'Activar usuario'}
+                      >
+                        {user.isActive ? '🚫' : '✅'}
+                      </button>
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleRoleChange(user.uid, e.target.value as 'admin' | 'user')}
+                        disabled={saving === user.uid}
+                        className="role-select"
+                        title="Cambiar rol"
+                      >
+                        <option value="user">👤 Usuario</option>
+                        <option value="admin">👑 Admin</option>
+                      </select>
+                      <button
+                        onClick={() => setShowDeleteConfirm(user.uid)}
+                        disabled={saving === user.uid || user.uid === currentUser?.uid}
+                        className="btn btn-danger btn-small"
+                        title="Eliminar usuario"
+                      >
+                        🗑️
+                      </button>
+                      {saving === user.uid && <span className="saving-indicator">Guardando...</span>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pending Role Assignments Table */}
+      {pendingUsers.length > 0 && (
+        <div className="user-table-container">
+          <h3>⏳ Asignaciones de Rol Pendientes</h3>
+          <p className="pending-info">
+            Estos roles serán asignados automáticamente cuando los usuarios inicien sesión por primera vez.
+          </p>
+          <table className="user-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Rol Asignado</th>
+                <th>Fecha de Asignación</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingUsers.map(pending => (
+                <tr key={pending.email}>
+                  <td className="user-email">{pending.email}</td>
+                  <td>
+                    <span
+                      className="role-badge"
+                      style={{ backgroundColor: getRoleBadgeColor(pending.role) }}
+                    >
+                      {pending.role === 'admin' ? 'Administrador' : 'Usuario'}
+                    </span>
+                  </td>
+                  <td>{formatDate(pending.assignedAt)}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button
+                        onClick={() => handleRemovePendingRole(pending.email)}
+                        disabled={saving === pending.email}
+                        className="btn btn-danger btn-small"
+                        title="Remover asignación pendiente"
+                      >
+                        🗑️
+                      </button>
+                      {saving === pending.email && <span className="saving-indicator">Eliminando...</span>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {users.length === 0 && pendingUsers.length === 0 && (
+        <div className="no-users">
+          <div className="no-users-icon">👥</div>
+          <h3>No hay usuarios registrados</h3>
+          <p>Usa los botones de arriba para crear usuarios o asignar roles a emails.</p>
+        </div>
+      )}
 
       <div className="database-management">
         <h3>🗄️ Gestión de Base de Datos</h3>
@@ -473,6 +599,15 @@ const UserManagement: React.FC = () => {
           onSave={handleCreateUser}
           onClose={() => setShowCreateUserModal(false)}
           loading={saving === 'create'}
+        />
+      )}
+
+      {/* Assign Role Modal */}
+      {showAssignRoleModal && (
+        <AssignRoleModal
+          onSave={handleAssignRole}
+          onClose={() => setShowAssignRoleModal(false)}
+          loading={saving === 'assign'}
         />
       )}
     </div>
@@ -632,6 +767,118 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onSave, onClose, load
             </button>
             <button type="submit" disabled={loading} className="btn btn-primary">
               {loading ? 'Creando...' : 'Crear Usuario'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Assign Role Modal Component
+interface AssignRoleModalProps {
+  onSave: (roleData: { email: string; role: 'admin' | 'user' }) => void;
+  onClose: () => void;
+  loading: boolean;
+}
+
+const AssignRoleModal: React.FC<AssignRoleModalProps> = ({ onSave, onClose, loading }) => {
+  const [formData, setFormData] = useState({
+    email: '',
+    role: 'user' as 'admin' | 'user'
+  });
+
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const validateForm = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email es requerido';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email no es válido';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    onSave({
+      email: formData.email.toLowerCase(),
+      role: formData.role
+    });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>Asignar Rol a Usuario</h3>
+          <button onClick={onClose} className="modal-close">×</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-info">
+            <div className="info-icon">ℹ️</div>
+            <p>
+              Asigna un rol a un email. Cuando el usuario inicie sesión por primera vez,
+              automáticamente recibirá este rol.
+            </p>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="email">Email del Usuario *</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              placeholder="usuario@empresa.com"
+              className={errors.email ? 'error' : ''}
+              required
+            />
+            {errors.email && <span className="error-message">{errors.email}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="role">Rol a Asignar *</label>
+            <select
+              id="role"
+              name="role"
+              value={formData.role}
+              onChange={handleInputChange}
+            >
+              <option value="user">👤 Usuario Regular</option>
+              <option value="admin">👑 Administrador</option>
+            </select>
+            <small className="help-text">
+              El usuario tendrá este rol cuando inicie sesión por primera vez.
+            </small>
+          </div>
+
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
+              Cancelar
+            </button>
+            <button type="submit" disabled={loading} className="btn btn-primary">
+              {loading ? 'Asignando...' : 'Asignar Rol'}
             </button>
           </div>
         </form>

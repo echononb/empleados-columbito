@@ -54,6 +54,7 @@ export interface UpdateUserData {
 
 export class UserService {
   private static readonly COLLECTION_NAME = 'userProfiles';
+  private static readonly PENDING_ROLES_COLLECTION = 'pendingRoles';
 
   // Get current authenticated user profile
   static async getCurrentUserProfile(): Promise<UserProfile | null> {
@@ -105,6 +106,56 @@ export class UserService {
       console.error('Error getting all user profiles:', error);
       // Return empty array instead of throwing to allow the app to work in demo mode
       return [];
+    }
+  }
+
+  // Get all Firebase Auth users (requires Cloud Function for production)
+  // For now, we'll work with users that have signed in and have profiles
+  static async getAllAuthUsers(): Promise<UserProfile[]> {
+    try {
+      // In a production app, this would call a Cloud Function
+      // For now, we'll return users that have profiles in Firestore
+      // This represents users that have signed in at least once
+
+      console.warn('Firebase Auth listUsers requires Cloud Functions for security. Using Firestore profiles as proxy.');
+
+      // Return all user profiles as they represent authenticated users
+      return this.getAllUserProfiles();
+    } catch (error) {
+      console.error('Error getting auth users:', error);
+      return [];
+    }
+  }
+
+  // Create a user profile for an existing Firebase Auth user (admin invitation)
+  static async createProfileForExistingUser(email: string, role: 'admin' | 'user' = 'user', createdBy?: string): Promise<UserProfile | null> {
+    try {
+      if (!db) {
+        throw new Error('Firestore not configured');
+      }
+
+      // Check if profile already exists
+      const existingProfiles = await this.getAllUserProfiles();
+      const existingProfile = existingProfiles.find(p => p.email === email);
+
+      if (existingProfile) {
+        // Update existing profile
+        await this.updateUserProfile(existingProfile.uid, { role });
+        return { ...existingProfile, role };
+      }
+
+      // For existing Firebase Auth users, we can't get their UID from client side
+      // In production, this would be done via Cloud Functions
+      // For now, we'll create a placeholder that will be updated when user signs in
+
+      console.warn('Cannot create profile for existing Firebase Auth user from client side. Use Cloud Functions for production.');
+
+      // Return null to indicate this operation needs server-side implementation
+      return null;
+
+    } catch (error) {
+      console.error('Error creating profile for existing user:', error);
+      throw error;
     }
   }
 
@@ -339,6 +390,135 @@ export class UserService {
     } catch (error) {
       console.error('Error getting active users:', error);
       throw error;
+    }
+  }
+
+  // Assign role to email (for users that haven't signed in yet)
+  static async assignRoleToEmail(email: string, role: 'admin' | 'user', assignedBy?: string): Promise<void> {
+    try {
+      if (!db) {
+        throw new Error('Firestore not configured');
+      }
+
+      // Check if user already has a profile
+      const existingProfiles = await this.getAllUserProfiles();
+      const existingProfile = existingProfiles.find(p => p.email === email);
+
+      if (existingProfile) {
+        // Update existing profile
+        await this.updateUserProfile(existingProfile.uid, { role });
+        return;
+      }
+
+      // Create pending role assignment
+      const pendingRoleData = {
+        email: email.toLowerCase(),
+        role,
+        assignedBy,
+        assignedAt: new Date().toISOString(),
+        status: 'pending' // pending, applied, expired
+      };
+
+      await setDoc(doc(db, this.PENDING_ROLES_COLLECTION, email.toLowerCase()), pendingRoleData);
+
+    } catch (error) {
+      console.error('Error assigning role to email:', error);
+      throw error;
+    }
+  }
+
+  // Get all pending role assignments
+  static async getPendingRoleAssignments(): Promise<Array<{email: string, role: 'admin' | 'user', assignedAt: string, assignedBy?: string}>> {
+    try {
+      if (!db) return [];
+
+      const q = query(
+        collection(db, this.PENDING_ROLES_COLLECTION),
+        where('status', '==', 'pending'),
+        orderBy('assignedAt', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const pendingRoles: Array<{email: string, role: 'admin' | 'user', assignedAt: string, assignedBy?: string}> = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        pendingRoles.push({
+          email: data.email,
+          role: data.role,
+          assignedAt: data.assignedAt,
+          assignedBy: data.assignedBy
+        });
+      });
+
+      return pendingRoles;
+    } catch (error) {
+      console.error('Error getting pending role assignments:', error);
+      return [];
+    }
+  }
+
+  // Check and apply pending role when user signs in
+  static async applyPendingRole(email: string, uid: string): Promise<'admin' | 'user' | null> {
+    try {
+      if (!db) return null;
+
+      const pendingRoleRef = doc(db, this.PENDING_ROLES_COLLECTION, email.toLowerCase());
+      const pendingRoleSnap = await getDoc(pendingRoleRef);
+
+      if (pendingRoleSnap.exists()) {
+        const pendingRoleData = pendingRoleSnap.data();
+
+        // Update the user's profile with the assigned role
+        const userProfile = await this.getUserProfile(uid);
+        if (userProfile) {
+          await this.updateUserProfile(uid, { role: pendingRoleData.role });
+        }
+
+        // Mark pending role as applied
+        await updateDoc(pendingRoleRef, {
+          status: 'applied',
+          appliedAt: new Date().toISOString(),
+          appliedToUid: uid
+        });
+
+        return pendingRoleData.role;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error applying pending role:', error);
+      return null;
+    }
+  }
+
+  // Remove pending role assignment
+  static async removePendingRole(email: string): Promise<void> {
+    try {
+      if (!db) return;
+
+      await deleteDoc(doc(db, this.PENDING_ROLES_COLLECTION, email.toLowerCase()));
+    } catch (error) {
+      console.error('Error removing pending role:', error);
+      throw error;
+    }
+  }
+
+  // Get all manageable users (both registered and pending)
+  static async getAllManageableUsers(): Promise<{
+    registered: UserProfile[],
+    pending: Array<{email: string, role: 'admin' | 'user', assignedAt: string, assignedBy?: string}>
+  }> {
+    try {
+      const [registered, pending] = await Promise.all([
+        this.getAllUserProfiles(),
+        this.getPendingRoleAssignments()
+      ]);
+
+      return { registered, pending };
+    } catch (error) {
+      console.error('Error getting manageable users:', error);
+      return { registered: [], pending: [] };
     }
   }
 }

@@ -49,9 +49,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (user) {
         try {
+          // Check for pending roles first
+          const pendingRole = await UserService.applyPendingRole(user.email!, user.uid);
+
           // Initialize or get user profile from Firestore
           const userProfile = await UserService.initializeUserProfile(user);
-          setUserRole(userProfile.role);
+
+          // Use pending role if applied, otherwise use profile role
+          const finalRole = pendingRole || userProfile.role;
+          setUserRole(finalRole);
+
+          // Update profile if pending role was applied
+          if (pendingRole && pendingRole !== userProfile.role) {
+            await UserService.updateUserProfile(user.uid, { role: pendingRole });
+          }
+
         } catch (error) {
           console.error('Error loading user profile:', error);
           // Fallback to localStorage or default role
