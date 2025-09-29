@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { DatabaseCleaner } from '../utils/databaseCleaner';
+import { UserService, UserProfile } from '../services/userService';
 
-interface User {
-  uid: string;
-  email: string;
-  role: 'admin' | 'user';
-  isActive: boolean;
-  lastLogin?: string;
-  createdAt?: string;
-}
+interface User extends UserProfile {}
 
 const UserManagement: React.FC = () => {
   const { user: currentUser, updateUserRole } = useAuth();
@@ -24,52 +18,26 @@ const UserManagement: React.FC = () => {
     totalRecords: 0
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
 
   useEffect(() => {
     loadUsers();
     loadDataStats();
   }, []);
 
-  const loadUsers = () => {
-    // In a real app, this would fetch users from Firebase Auth Admin SDK
-    // For now, we'll simulate with localStorage data
-    const mockUsers: User[] = [
-      {
-        uid: 'user1',
-        email: 'admin@columbito.com',
-        role: 'admin',
-        isActive: true,
-        lastLogin: new Date().toISOString(),
-        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        uid: 'user2',
-        email: 'usuario@empresa.com',
-        role: 'user',
-        isActive: true,
-        lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        uid: 'user3',
-        email: 'jefe@construccion.com',
-        role: 'user',
-        isActive: true,
-        lastLogin: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ];
-
-    // Load roles and status from localStorage
-    const usersWithRoles = mockUsers.map(user => ({
-      ...user,
-      role: (localStorage.getItem(`userRole_${user.uid}`) as 'admin' | 'user') ||
-            (user.email === 'admin@columbito.com' ? 'admin' : 'user'),
-      isActive: localStorage.getItem(`userStatus_${user.uid}`) !== 'inactive'
-    }));
-
-    setUsers(usersWithRoles);
-    setLoading(false);
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      // Load real users from Firebase Auth via UserService
+      const userProfiles = await UserService.getAllUserProfiles();
+      setUsers(userProfiles);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      // Fallback to empty array if Firebase is not available
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadDataStats = async () => {
@@ -111,9 +79,10 @@ const UserManagement: React.FC = () => {
 
     setSaving(userId);
     try {
-      // In a real app, this would update the user's custom claims in Firebase
-      localStorage.setItem(`userRole_${userId}`, newRole);
+      // Update user role using UserService
+      await UserService.updateUserRole(userId, newRole);
 
+      // Update local state
       setUsers(prev => prev.map(user =>
         user.uid === userId ? { ...user, role: newRole } : user
       ));
@@ -140,16 +109,15 @@ const UserManagement: React.FC = () => {
 
     setSaving(userId);
     try {
-      // Get current status from localStorage
-      const currentStatus = localStorage.getItem(`userStatus_${userId}`) !== 'inactive';
-      const newStatus = !currentStatus;
+      // Toggle user status using UserService
+      await UserService.toggleUserStatus(userId);
 
-      localStorage.setItem(`userStatus_${userId}`, newStatus ? 'active' : 'inactive');
-
+      // Update local state
       setUsers(prev => prev.map(user =>
-        user.uid === userId ? { ...user, isActive: newStatus } : user
+        user.uid === userId ? { ...user, isActive: !user.isActive } : user
       ));
 
+      const newStatus = !users.find(u => u.uid === userId)?.isActive;
       alert(`Usuario ${newStatus ? 'activado' : 'desactivado'} exitosamente.`);
     } catch (error) {
       console.error('Error toggling user status:', error);
@@ -171,10 +139,10 @@ const UserManagement: React.FC = () => {
 
     setSaving(userId);
     try {
-      // Remove user data from localStorage
-      localStorage.removeItem(`userRole_${userId}`);
-      localStorage.removeItem(`userStatus_${userId}`);
+      // Delete user using UserService
+      await UserService.deleteUser(userId);
 
+      // Update local state
       setUsers(prev => prev.filter(user => user.uid !== userId));
 
       alert('Usuario eliminado exitosamente.');
@@ -184,6 +152,29 @@ const UserManagement: React.FC = () => {
     } finally {
       setSaving(null);
       setShowDeleteConfirm(null);
+    }
+  };
+
+  const handleCreateUser = async (userData: { email: string; password: string; displayName?: string; role?: 'admin' | 'user' }) => {
+    setSaving('create');
+    try {
+      const newUser = await UserService.createUser({
+        email: userData.email,
+        password: userData.password,
+        displayName: userData.displayName,
+        role: userData.role
+      }, currentUser?.uid);
+
+      // Add to local state
+      setUsers(prev => [...prev, newUser]);
+
+      alert('Usuario creado exitosamente.');
+      setShowCreateUserModal(false);
+    } catch (error) {
+      console.error('Error creating user:', error);
+      alert('Error al crear el usuario.');
+    } finally {
+      setSaving(null);
     }
   };
 
@@ -207,11 +198,21 @@ const UserManagement: React.FC = () => {
 
   return (
     <div className="user-management">
-      <h2>Administración de Usuarios</h2>
-      <p className="description">
-        Gestiona los roles y permisos de los usuarios del sistema.
-        Los administradores tienen acceso completo a reportes y configuración.
-      </p>
+      <div className="user-management-header">
+        <div>
+          <h2>Administración de Usuarios</h2>
+          <p className="description">
+            Gestiona los roles y permisos de los usuarios del sistema.
+            Los administradores tienen acceso completo a reportes y configuración.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateUserModal(true)}
+          className="btn btn-primary"
+        >
+          ➕ Crear Usuario
+        </button>
+      </div>
 
       <div className="user-stats">
         <div className="stat-card">
@@ -417,10 +418,178 @@ const UserManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Create User Modal */}
+      {showCreateUserModal && (
+        <CreateUserModal
+          onSave={handleCreateUser}
+          onClose={() => setShowCreateUserModal(false)}
+          loading={saving === 'create'}
+        />
+      )}
     </div>
   );
 };
 
 export default UserManagement;
+
+// Create User Modal Component
+interface CreateUserModalProps {
+  onSave: (userData: { email: string; password: string; displayName?: string; role?: 'admin' | 'user' }) => void;
+  onClose: () => void;
+  loading: boolean;
+}
+
+const CreateUserModal: React.FC<CreateUserModalProps> = ({ onSave, onClose, loading }) => {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    displayName: '',
+    role: 'user' as 'admin' | 'user'
+  });
+
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const validateForm = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email es requerido';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email no es válido';
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Contraseña es requerida';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Las contraseñas no coinciden';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    onSave({
+      email: formData.email,
+      password: formData.password,
+      displayName: formData.displayName || undefined,
+      role: formData.role
+    });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>Crear Nuevo Usuario</h3>
+          <button onClick={onClose} className="modal-close">×</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label htmlFor="email">Email *</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              className={errors.email ? 'error' : ''}
+              required
+            />
+            {errors.email && <span className="error-message">{errors.email}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="displayName">Nombre para Mostrar</label>
+            <input
+              type="text"
+              id="displayName"
+              name="displayName"
+              value={formData.displayName}
+              onChange={handleInputChange}
+              placeholder="Opcional"
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="password">Contraseña *</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                className={errors.password ? 'error' : ''}
+                required
+                minLength={6}
+              />
+              {errors.password && <span className="error-message">{errors.password}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirmar Contraseña *</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                className={errors.confirmPassword ? 'error' : ''}
+                required
+                minLength={6}
+              />
+              {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="role">Rol *</label>
+            <select
+              id="role"
+              name="role"
+              value={formData.role}
+              onChange={handleInputChange}
+            >
+              <option value="user">👤 Usuario Regular</option>
+              <option value="admin">👑 Administrador</option>
+            </select>
+          </div>
+
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
+              Cancelar
+            </button>
+            <button type="submit" disabled={loading} className="btn btn-primary">
+              {loading ? 'Creando...' : 'Crear Usuario'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 export {};

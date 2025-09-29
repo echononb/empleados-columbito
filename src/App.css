@@ -1556,6 +1556,23 @@ main {
 }
 
 /* User Management Styles */
+.user-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  gap: 20px;
+}
+
+.user-management-header h2 {
+  margin: 0 0 10px 0;
+}
+
+.user-management-header .description {
+  margin: 0;
+  max-width: 600px;
+}
+
 .action-buttons {
   display: flex;
   gap: 8px;

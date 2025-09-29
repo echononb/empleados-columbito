@@ -10,6 +10,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from '../firebase';
+import { UserService } from '../services/userService';
 
 interface AuthContextType {
   user: User | null;
@@ -43,8 +44,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+
+      if (user) {
+        try {
+          // Initialize or get user profile from Firestore
+          const userProfile = await UserService.initializeUserProfile(user);
+          setUserRole(userProfile.role);
+        } catch (error) {
+          console.error('Error loading user profile:', error);
+          // Fallback to localStorage or default role
+          const storedRole = localStorage.getItem(`userRole_${user.uid}`);
+          const defaultRole = user.email === 'admin@columbito.com' ? 'admin' : 'user';
+          setUserRole(storedRole as 'admin' | 'user' || defaultRole);
+        }
+      } else {
+        setUserRole(null);
+      }
+
       setLoading(false);
     });
 
@@ -76,25 +94,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const updateUserRole = async (role: 'admin' | 'user') => {
-    // In a real app, this would update the user's role in Firestore
-    // For now, we'll store it in localStorage
     if (user) {
-      localStorage.setItem(`userRole_${user.uid}`, role);
-      setUserRole(role);
+      try {
+        // Update user role using UserService
+        await UserService.updateUserRole(user.uid, role);
+        setUserRole(role);
+      } catch (error) {
+        console.error('Error updating user role:', error);
+        // Fallback to localStorage
+        localStorage.setItem(`userRole_${user.uid}`, role);
+        setUserRole(role);
+      }
     }
   };
 
-  // Load user role from localStorage when user changes
-  useEffect(() => {
-    if (user) {
-      const storedRole = localStorage.getItem(`userRole_${user.uid}`);
-      // Default to 'user' if no role is set, or 'admin' for specific emails
-      const defaultRole = user.email === 'admin@columbito.com' ? 'admin' : 'user';
-      setUserRole(storedRole as 'admin' | 'user' || defaultRole);
-    } else {
-      setUserRole(null);
-    }
-  }, [user]);
 
   const value = {
     user,
