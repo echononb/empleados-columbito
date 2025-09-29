@@ -9,6 +9,14 @@
       }
     }
   ],
+  "functions": {
+    "src/pages/api/**/*.js": {
+      "runtime": "@vercel/node"
+    }
+  },
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "installCommand": "npm install"
   "routes": [
     {
       "src": "/static/(.*)",
@@ -45,10 +53,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "src/pages/api/**/*.js": {
-      "runtime": "@vercel/node"
-    }
-  }
+  ]
 }
