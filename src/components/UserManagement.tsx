@@ -8,7 +8,7 @@ interface User extends UserProfile {}
 
 interface PendingUser {
   email: string;
-  role: 'admin' | 'user';
+  role: 'consulta' | 'digitador' | 'administrador';
   assignedAt: string;
   assignedBy?: string;
   type: 'pending';
@@ -85,8 +85,8 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: 'admin' | 'user') => {
-    if (userId === currentUser?.uid && newRole !== 'admin') {
+  const handleRoleChange = async (userId: string, newRole: 'consulta' | 'digitador' | 'administrador') => {
+    if (userId === currentUser?.uid && newRole !== 'administrador') {
       alert('No puedes quitarte permisos de administrador a ti mismo.');
       return;
     }
@@ -169,7 +169,7 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleCreateUser = async (userData: { email: string; password: string; displayName?: string; role?: 'admin' | 'user' }) => {
+  const handleCreateUser = async (userData: { email: string; password: string; displayName?: string; role?: 'consulta' | 'digitador' | 'administrador' }) => {
     setSaving('create');
     try {
       const newUser = await UserService.createUser({
@@ -220,7 +220,7 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleAssignRole = async (emailData: { email: string; role: 'admin' | 'user' }) => {
+  const handleAssignRole = async (emailData: { email: string; role: 'consulta' | 'digitador' | 'administrador' }) => {
     setSaving('assign');
     try {
       await UserService.assignRoleToEmail(emailData.email, emailData.role, currentUser?.uid);
@@ -232,7 +232,23 @@ const UserManagement: React.FC = () => {
       setShowAssignRoleModal(false);
     } catch (error: any) {
       console.error('Error assigning role:', error);
-      alert('Error al asignar el rol: ' + (error.message || 'Error desconocido'));
+
+      // Provide more specific error messages
+      let errorMessage = 'Error al asignar el rol.';
+
+      if (error.code === 'permission-denied') {
+        errorMessage = 'Error de permisos: No tienes permisos para asignar roles. Solo administradores pueden asignar roles.';
+      } else if (error.code === 'unavailable') {
+        errorMessage = 'Error de conexión: No se puede conectar a Firebase. Verifica tu conexión a internet.';
+      } else if (error.code === 'deadline-exceeded') {
+        errorMessage = 'Error de tiempo de espera: La operación tardó demasiado. Inténtalo de nuevo.';
+      } else if (error.message) {
+        errorMessage = `Error al asignar el rol: ${error.message}`;
+      } else {
+        errorMessage = 'Error desconocido al asignar el rol. Revisa la consola para más detalles.';
+      }
+
+      alert(errorMessage);
     } finally {
       setSaving(null);
     }
@@ -260,7 +276,21 @@ const UserManagement: React.FC = () => {
   };
 
   const getRoleBadgeColor = (role: string) => {
-    return role === 'admin' ? '#e74c3c' : '#3498db';
+    switch (role) {
+      case 'administrador': return '#e74c3c';
+      case 'digitador': return '#f39c12';
+      case 'consulta': return '#3498db';
+      default: return '#95a5a6';
+    }
+  };
+
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'administrador': return 'Administrador';
+      case 'digitador': return 'Digitador';
+      case 'consulta': return 'Consulta';
+      default: return role;
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -329,12 +359,16 @@ const UserManagement: React.FC = () => {
           <p>Total Usuarios</p>
         </div>
         <div className="stat-card">
-          <h4>{users.filter(u => u.role === 'admin').length + pendingUsers.filter(p => p.role === 'admin').length}</h4>
+          <h4>{users.filter(u => u.role === 'administrador').length + pendingUsers.filter(p => p.role === 'administrador').length}</h4>
           <p>Administradores</p>
         </div>
         <div className="stat-card">
-          <h4>{users.filter(u => u.role === 'user').length + pendingUsers.filter(p => p.role === 'user').length}</h4>
-          <p>Usuarios Regulares</p>
+          <h4>{users.filter(u => u.role === 'digitador').length + pendingUsers.filter(p => p.role === 'digitador').length}</h4>
+          <p>Digitadores</p>
+        </div>
+        <div className="stat-card">
+          <h4>{users.filter(u => u.role === 'consulta').length + pendingUsers.filter(p => p.role === 'consulta').length}</h4>
+          <p>Consulta</p>
         </div>
         <div className="stat-card">
           <h4>{pendingUsers.length}</h4>
@@ -374,7 +408,7 @@ const UserManagement: React.FC = () => {
                       className="role-badge"
                       style={{ backgroundColor: getRoleBadgeColor(user.role) }}
                     >
-                      {user.role === 'admin' ? 'Administrador' : 'Usuario'}
+                      {getRoleDisplayName(user.role)}
                     </span>
                   </td>
                   <td>{user.lastLogin ? formatDate(user.lastLogin) : 'Nunca'}</td>
@@ -391,13 +425,14 @@ const UserManagement: React.FC = () => {
                       </button>
                       <select
                         value={user.role}
-                        onChange={(e) => handleRoleChange(user.uid, e.target.value as 'admin' | 'user')}
+                        onChange={(e) => handleRoleChange(user.uid, e.target.value as 'consulta' | 'digitador' | 'administrador')}
                         disabled={saving === user.uid}
                         className="role-select"
                         title="Cambiar rol"
                       >
-                        <option value="user">👤 Usuario</option>
-                        <option value="admin">👑 Admin</option>
+                        <option value="consulta">👁️ Consulta</option>
+                        <option value="digitador">✏️ Digitador</option>
+                        <option value="administrador">👑 Administrador</option>
                       </select>
                       <button
                         onClick={() => setShowDeleteConfirm(user.uid)}
@@ -442,7 +477,7 @@ const UserManagement: React.FC = () => {
                       className="role-badge"
                       style={{ backgroundColor: getRoleBadgeColor(pending.role) }}
                     >
-                      {pending.role === 'admin' ? 'Administrador' : 'Usuario'}
+                      {getRoleDisplayName(pending.role)}
                     </span>
                   </td>
                   <td>{formatDate(pending.assignedAt)}</td>
@@ -530,11 +565,19 @@ const UserManagement: React.FC = () => {
         <h3>Información sobre Roles</h3>
         <div className="role-info">
           <div className="role-item">
-            <h4>👤 Usuario Regular</h4>
+            <h4>👁️ Consulta</h4>
             <ul>
-              <li>Acceso a empleados, proyectos y clientes</li>
-              <li>Crear y editar registros básicos</li>
+              <li>Solo lectura de empleados, proyectos y clientes</li>
+              <li>No puede crear ni editar registros</li>
               <li>No acceso a reportes ni administración</li>
+            </ul>
+          </div>
+          <div className="role-item">
+            <h4>✏️ Digitador</h4>
+            <ul>
+              <li>Lectura y escritura de empleados, proyectos y clientes</li>
+              <li>Acceso completo a reportes</li>
+              <li>No puede gestionar usuarios ni configuración</li>
             </ul>
           </div>
           <div className="role-item">
@@ -618,7 +661,7 @@ export default UserManagement;
 
 // Create User Modal Component
 interface CreateUserModalProps {
-  onSave: (userData: { email: string; password: string; displayName?: string; role?: 'admin' | 'user' }) => void;
+  onSave: (userData: { email: string; password: string; displayName?: string; role?: 'consulta' | 'digitador' | 'administrador' }) => void;
   onClose: () => void;
   loading: boolean;
 }
@@ -629,7 +672,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onSave, onClose, load
     password: '',
     confirmPassword: '',
     displayName: '',
-    role: 'user' as 'admin' | 'user'
+    role: 'consulta' as 'consulta' | 'digitador' | 'administrador'
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -756,8 +799,9 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onSave, onClose, load
               value={formData.role}
               onChange={handleInputChange}
             >
-              <option value="user">👤 Usuario Regular</option>
-              <option value="admin">👑 Administrador</option>
+              <option value="consulta">👁️ Consulta</option>
+              <option value="digitador">✏️ Digitador</option>
+              <option value="administrador">👑 Administrador</option>
             </select>
           </div>
 
@@ -777,7 +821,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onSave, onClose, load
 
 // Assign Role Modal Component
 interface AssignRoleModalProps {
-  onSave: (roleData: { email: string; role: 'admin' | 'user' }) => void;
+  onSave: (roleData: { email: string; role: 'consulta' | 'digitador' | 'administrador' }) => void;
   onClose: () => void;
   loading: boolean;
 }
@@ -785,7 +829,7 @@ interface AssignRoleModalProps {
 const AssignRoleModal: React.FC<AssignRoleModalProps> = ({ onSave, onClose, loading }) => {
   const [formData, setFormData] = useState({
     email: '',
-    role: 'user' as 'admin' | 'user'
+    role: 'consulta' as 'consulta' | 'digitador' | 'administrador'
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -865,8 +909,9 @@ const AssignRoleModal: React.FC<AssignRoleModalProps> = ({ onSave, onClose, load
               value={formData.role}
               onChange={handleInputChange}
             >
-              <option value="user">👤 Usuario Regular</option>
-              <option value="admin">👑 Administrador</option>
+              <option value="consulta">👁️ Consulta</option>
+              <option value="digitador">✏️ Digitador</option>
+              <option value="administrador">👑 Administrador</option>
             </select>
             <small className="help-text">
               El usuario tendrá este rol cuando inicie sesión por primera vez.

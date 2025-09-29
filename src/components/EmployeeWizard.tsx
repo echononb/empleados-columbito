@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { EmployeeService, Employee } from '../services/employeeService';
 import PhotoUpload from './PhotoUpload';
+import { useAuth } from '../contexts/AuthContext';
 
 interface WizardStep {
   id: number;
@@ -14,7 +15,11 @@ interface WizardStep {
 const EmployeeWizard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { userRole } = useAuth();
   const isEditing = !!id;
+
+  // Check if user can edit employees
+  const canEdit = userRole === 'digitador' || userRole === 'administrador';
 
   const [currentStep, setCurrentStep] = useState(1);
   const [employee, setEmployee] = useState<Employee>({
@@ -325,6 +330,7 @@ const EmployeeWizard: React.FC = () => {
                     onChange={handleInputChange}
                     maxLength={8}
                     className={errors.dni ? 'error' : ''}
+                    readOnly={!canEdit}
                   />
                   {errors.dni && <span className="error-message">{errors.dni}</span>}
                 </div>
@@ -997,23 +1003,29 @@ const EmployeeWizard: React.FC = () => {
             Paso {currentStep} de {steps.length}
           </div>
 
-          {currentStep < steps.length ? (
-            <button
-              type="button"
-              onClick={handleNext}
-              className="btn btn-primary"
-            >
-              Siguiente →
-            </button>
+          {canEdit ? (
+            currentStep < steps.length ? (
+              <button
+                type="button"
+                onClick={handleNext}
+                className="btn btn-primary"
+              >
+                Siguiente →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleFinish}
+                disabled={loading}
+                className="btn btn-success"
+              >
+                {loading ? 'Finalizando...' : 'Finalizar ✓'}
+              </button>
+            )
           ) : (
-            <button
-              type="button"
-              onClick={handleFinish}
-              disabled={loading}
-              className="btn btn-success"
-            >
-              {loading ? 'Finalizando...' : 'Finalizar ✓'}
-            </button>
+            <div className="read-only-notice">
+              👁️ Modo de solo lectura - No tienes permisos para editar
+            </div>
           )}
         </div>
       </div>

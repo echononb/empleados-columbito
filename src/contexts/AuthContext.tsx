@@ -15,13 +15,13 @@ import { UserService } from '../services/userService';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  userRole: 'admin' | 'user' | null;
+  userRole: 'consulta' | 'digitador' | 'administrador' | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  updateUserRole: (role: 'admin' | 'user') => Promise<void>;
+  updateUserRole: (role: 'consulta' | 'digitador' | 'administrador') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,7 +41,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
+  const [userRole, setUserRole] = useState<'consulta' | 'digitador' | 'administrador' | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -68,8 +68,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.error('Error loading user profile:', error);
           // Fallback to localStorage or default role
           const storedRole = localStorage.getItem(`userRole_${user.uid}`);
-          const defaultRole = user.email === 'admin@columbito.com' ? 'admin' : 'user';
-          setUserRole(storedRole as 'admin' | 'user' || defaultRole);
+          const defaultRole = user.email === 'admin@columbito.com' ? 'administrador' : 'consulta';
+          setUserRole(storedRole as 'consulta' | 'digitador' | 'administrador' || defaultRole);
         }
       } else {
         setUserRole(null);
@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await sendPasswordResetEmail(auth, email);
   };
 
-  const updateUserRole = async (role: 'admin' | 'user') => {
+  const updateUserRole = async (role: 'consulta' | 'digitador' | 'administrador') => {
     if (user) {
       try {
         // Update user role using UserService

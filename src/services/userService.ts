@@ -31,7 +31,7 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName?: string;
-  role: 'admin' | 'user';
+  role: 'consulta' | 'digitador' | 'administrador';
   isActive: boolean;
   lastLogin?: string;
   createdAt: string;
@@ -43,12 +43,12 @@ export interface CreateUserData {
   email: string;
   password: string;
   displayName?: string;
-  role?: 'admin' | 'user';
+  role?: 'consulta' | 'digitador' | 'administrador';
 }
 
 export interface UpdateUserData {
   displayName?: string;
-  role?: 'admin' | 'user';
+  role?: 'consulta' | 'digitador' | 'administrador';
   isActive?: boolean;
 }
 
@@ -128,7 +128,7 @@ export class UserService {
   }
 
   // Create a user profile for an existing Firebase Auth user (admin invitation)
-  static async createProfileForExistingUser(email: string, role: 'admin' | 'user' = 'user', createdBy?: string): Promise<UserProfile | null> {
+  static async createProfileForExistingUser(email: string, role: 'consulta' | 'digitador' | 'administrador' = 'consulta', createdBy?: string): Promise<UserProfile | null> {
     try {
       if (!db) {
         throw new Error('Firestore not configured');
@@ -188,7 +188,7 @@ export class UserService {
         uid: user.uid,
         email: userData.email,
         displayName: userData.displayName,
-        role: userData.role || 'user',
+        role: userData.role || 'consulta',
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -274,7 +274,7 @@ export class UserService {
   }
 
   // Update user role
-  static async updateUserRole(uid: string, newRole: 'admin' | 'user'): Promise<void> {
+  static async updateUserRole(uid: string, newRole: 'consulta' | 'digitador' | 'administrador'): Promise<void> {
     try {
       await this.updateUserProfile(uid, { role: newRole });
     } catch (error) {
@@ -298,7 +298,7 @@ export class UserService {
   static async isUserAdmin(uid: string): Promise<boolean> {
     try {
       const userProfile = await this.getUserProfile(uid);
-      return userProfile?.role === 'admin' || false;
+      return userProfile?.role === 'administrador' || false;
     } catch (error) {
       console.error('Error checking admin status:', error);
       return false;
@@ -332,7 +332,7 @@ export class UserService {
         uid: user.uid,
         email: user.email!,
         displayName: user.displayName || undefined,
-        role: 'user', // Default role
+        role: 'consulta', // Default role
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -394,32 +394,56 @@ export class UserService {
   }
 
   // Assign role to email (for users that haven't signed in yet)
-  static async assignRoleToEmail(email: string, role: 'admin' | 'user', assignedBy?: string): Promise<void> {
+  static async assignRoleToEmail(email: string, role: 'consulta' | 'digitador' | 'administrador', assignedBy?: string): Promise<void> {
     try {
-      if (!db) {
-        throw new Error('Firestore not configured');
+      // Try Firebase first
+      if (db) {
+        try {
+          // Check if user already has a profile
+          const existingProfiles = await this.getAllUserProfiles();
+          const existingProfile = existingProfiles.find(p => p.email === email);
+
+          if (existingProfile) {
+            // Update existing profile
+            await this.updateUserProfile(existingProfile.uid, { role });
+            return;
+          }
+
+          // Create pending role assignment
+          const pendingRoleData = {
+            email: email.toLowerCase(),
+            role,
+            assignedBy,
+            assignedAt: new Date().toISOString(),
+            status: 'pending' // pending, applied, expired
+          };
+
+          await setDoc(doc(db, this.PENDING_ROLES_COLLECTION, email.toLowerCase()), pendingRoleData);
+          return;
+        } catch (firebaseError) {
+          console.warn('Firebase role assignment failed, using localStorage fallback:', firebaseError);
+        }
       }
 
-      // Check if user already has a profile
-      const existingProfiles = await this.getAllUserProfiles();
-      const existingProfile = existingProfiles.find(p => p.email === email);
-
-      if (existingProfile) {
-        // Update existing profile
-        await this.updateUserProfile(existingProfile.uid, { role });
-        return;
-      }
-
-      // Create pending role assignment
+      // Fallback: Store in localStorage
+      console.warn('Using localStorage fallback for role assignment');
+      const localKey = `pending_role_${email.toLowerCase()}`;
       const pendingRoleData = {
         email: email.toLowerCase(),
         role,
         assignedBy,
         assignedAt: new Date().toISOString(),
-        status: 'pending' // pending, applied, expired
+        status: 'pending',
+        storage: 'localStorage' // Mark as localStorage fallback
       };
 
-      await setDoc(doc(db, this.PENDING_ROLES_COLLECTION, email.toLowerCase()), pendingRoleData);
+      localStorage.setItem(localKey, JSON.stringify(pendingRoleData));
+
+      // Also store in a master list for easier retrieval
+      const masterListKey = 'pending_roles_list';
+      const existingList = JSON.parse(localStorage.getItem(masterListKey) || '[]');
+      const updatedList = [...existingList.filter((item: any) => item.email !== email.toLowerCase()), pendingRoleData];
+      localStorage.setItem(masterListKey, JSON.stringify(updatedList));
 
     } catch (error) {
       console.error('Error assigning role to email:', error);
@@ -428,30 +452,65 @@ export class UserService {
   }
 
   // Get all pending role assignments
-  static async getPendingRoleAssignments(): Promise<Array<{email: string, role: 'admin' | 'user', assignedAt: string, assignedBy?: string}>> {
+  static async getPendingRoleAssignments(): Promise<Array<{email: string, role: 'consulta' | 'digitador' | 'administrador', assignedAt: string, assignedBy?: string}>> {
+    const pendingRoles: Array<{email: string, role: 'consulta' | 'digitador' | 'administrador', assignedAt: string, assignedBy?: string}> = [];
+
     try {
-      if (!db) return [];
+      // Try Firebase first
+      if (db) {
+        try {
+          const q = query(
+            collection(db, this.PENDING_ROLES_COLLECTION),
+            where('status', '==', 'pending'),
+            orderBy('assignedAt', 'desc')
+          );
 
-      const q = query(
-        collection(db, this.PENDING_ROLES_COLLECTION),
-        where('status', '==', 'pending'),
-        orderBy('assignedAt', 'desc')
-      );
+          const querySnapshot = await getDocs(q);
 
-      const querySnapshot = await getDocs(q);
-      const pendingRoles: Array<{email: string, role: 'admin' | 'user', assignedAt: string, assignedBy?: string}> = [];
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            // Handle migration from old role types to new ones
+            let role: 'consulta' | 'digitador' | 'administrador' = 'consulta';
+            if (data.role === 'admin') role = 'administrador';
+            else if (data.role === 'user') role = 'consulta';
+            else role = data.role as 'consulta' | 'digitador' | 'administrador';
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        pendingRoles.push({
-          email: data.email,
-          role: data.role,
-          assignedAt: data.assignedAt,
-          assignedBy: data.assignedBy
+            pendingRoles.push({
+              email: data.email,
+              role,
+              assignedAt: data.assignedAt,
+              assignedBy: data.assignedBy
+            });
+          });
+        } catch (firebaseError) {
+          console.warn('Firebase pending roles query failed, using localStorage fallback:', firebaseError);
+        }
+      }
+
+      // Always check localStorage as fallback/additional source
+      try {
+        const masterListKey = 'pending_roles_list';
+        const localPendingRoles = JSON.parse(localStorage.getItem(masterListKey) || '[]');
+
+        // Add localStorage roles that aren't already in the Firebase results
+        localPendingRoles.forEach((localRole: any) => {
+          const existsInFirebase = pendingRoles.some(fbRole => fbRole.email === localRole.email);
+          if (!existsInFirebase && localRole.status === 'pending') {
+            pendingRoles.push({
+              email: localRole.email,
+              role: localRole.role,
+              assignedAt: localRole.assignedAt,
+              assignedBy: localRole.assignedBy
+            });
+          }
         });
-      });
+      } catch (localStorageError) {
+        console.warn('Error reading localStorage pending roles:', localStorageError);
+      }
 
-      return pendingRoles;
+      // Sort by assignedAt descending
+      return pendingRoles.sort((a, b) => new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime());
+
     } catch (error) {
       console.error('Error getting pending role assignments:', error);
       return [];
@@ -459,30 +518,69 @@ export class UserService {
   }
 
   // Check and apply pending role when user signs in
-  static async applyPendingRole(email: string, uid: string): Promise<'admin' | 'user' | null> {
+  static async applyPendingRole(email: string, uid: string): Promise<'consulta' | 'digitador' | 'administrador' | null> {
+    const emailKey = email.toLowerCase();
+
     try {
-      if (!db) return null;
+      // Try Firebase first
+      if (db) {
+        try {
+          const pendingRoleRef = doc(db, this.PENDING_ROLES_COLLECTION, emailKey);
+          const pendingRoleSnap = await getDoc(pendingRoleRef);
 
-      const pendingRoleRef = doc(db, this.PENDING_ROLES_COLLECTION, email.toLowerCase());
-      const pendingRoleSnap = await getDoc(pendingRoleRef);
+          if (pendingRoleSnap.exists()) {
+            const pendingRoleData = pendingRoleSnap.data();
 
-      if (pendingRoleSnap.exists()) {
-        const pendingRoleData = pendingRoleSnap.data();
+            // Update the user's profile with the assigned role
+            const userProfile = await this.getUserProfile(uid);
+            if (userProfile) {
+              await this.updateUserProfile(uid, { role: pendingRoleData.role });
+            }
 
-        // Update the user's profile with the assigned role
-        const userProfile = await this.getUserProfile(uid);
-        if (userProfile) {
-          await this.updateUserProfile(uid, { role: pendingRoleData.role });
+            // Mark pending role as applied
+            await updateDoc(pendingRoleRef, {
+              status: 'applied',
+              appliedAt: new Date().toISOString(),
+              appliedToUid: uid
+            });
+
+            return pendingRoleData.role;
+          }
+        } catch (firebaseError) {
+          console.warn('Firebase pending role application failed, trying localStorage:', firebaseError);
         }
+      }
 
-        // Mark pending role as applied
-        await updateDoc(pendingRoleRef, {
-          status: 'applied',
-          appliedAt: new Date().toISOString(),
-          appliedToUid: uid
-        });
+      // Try localStorage fallback
+      try {
+        const localKey = `pending_role_${emailKey}`;
+        const localPendingRole = JSON.parse(localStorage.getItem(localKey) || 'null');
 
-        return pendingRoleData.role;
+        if (localPendingRole && localPendingRole.status === 'pending') {
+          // Update the user's profile with the assigned role
+          const userProfile = await this.getUserProfile(uid);
+          if (userProfile) {
+            await this.updateUserProfile(uid, { role: localPendingRole.role });
+          }
+
+          // Mark as applied in localStorage
+          localPendingRole.status = 'applied';
+          localPendingRole.appliedAt = new Date().toISOString();
+          localPendingRole.appliedToUid = uid;
+          localStorage.setItem(localKey, JSON.stringify(localPendingRole));
+
+          // Update master list
+          const masterListKey = 'pending_roles_list';
+          const existingList = JSON.parse(localStorage.getItem(masterListKey) || '[]');
+          const updatedList = existingList.map((item: any) =>
+            item.email === emailKey ? localPendingRole : item
+          );
+          localStorage.setItem(masterListKey, JSON.stringify(updatedList));
+
+          return localPendingRole.role;
+        }
+      } catch (localStorageError) {
+        console.warn('Error applying localStorage pending role:', localStorageError);
       }
 
       return null;
@@ -494,10 +592,32 @@ export class UserService {
 
   // Remove pending role assignment
   static async removePendingRole(email: string): Promise<void> {
-    try {
-      if (!db) return;
+    const emailKey = email.toLowerCase();
 
-      await deleteDoc(doc(db, this.PENDING_ROLES_COLLECTION, email.toLowerCase()));
+    try {
+      // Try Firebase first
+      if (db) {
+        try {
+          await deleteDoc(doc(db, this.PENDING_ROLES_COLLECTION, emailKey));
+        } catch (firebaseError) {
+          console.warn('Firebase pending role removal failed:', firebaseError);
+        }
+      }
+
+      // Always try to remove from localStorage
+      try {
+        const localKey = `pending_role_${emailKey}`;
+        localStorage.removeItem(localKey);
+
+        // Also remove from master list
+        const masterListKey = 'pending_roles_list';
+        const existingList = JSON.parse(localStorage.getItem(masterListKey) || '[]');
+        const updatedList = existingList.filter((item: any) => item.email !== emailKey);
+        localStorage.setItem(masterListKey, JSON.stringify(updatedList));
+      } catch (localStorageError) {
+        console.warn('Error removing localStorage pending role:', localStorageError);
+      }
+
     } catch (error) {
       console.error('Error removing pending role:', error);
       throw error;
@@ -507,7 +627,7 @@ export class UserService {
   // Get all manageable users (both registered and pending)
   static async getAllManageableUsers(): Promise<{
     registered: UserProfile[],
-    pending: Array<{email: string, role: 'admin' | 'user', assignedAt: string, assignedBy?: string}>
+    pending: Array<{email: string, role: 'consulta' | 'digitador' | 'administrador', assignedAt: string, assignedBy?: string}>
   }> {
     try {
       const [registered, pending] = await Promise.all([

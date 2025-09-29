@@ -2,14 +2,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { EmployeeService, Employee } from '../services/employeeService';
 import LazyImage from './LazyImage';
+import { useAuth } from '../contexts/AuthContext';
 
 const EmployeeList: React.FC = () => {
+  const { userRole } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string>('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+
+  // Check if user can edit employees
+  const canEdit = userRole === 'digitador' || userRole === 'administrador';
+  const canManage = userRole === 'administrador';
 
   // Load employees from Firestore
   const loadEmployees = async () => {
@@ -97,9 +103,11 @@ const EmployeeList: React.FC = () => {
     <div className="employee-list">
       <div className="employee-list-header">
         <h2>Lista de Empleados</h2>
-        <Link to="/employees/new" className="btn btn-primary">
-          Agregar Empleado
-        </Link>
+        {canEdit && (
+          <Link to="/employees/new" className="btn btn-primary">
+            Agregar Empleado
+          </Link>
+        )}
       </div>
 
       <div className="filters-container">
@@ -184,16 +192,18 @@ const EmployeeList: React.FC = () => {
                 <td className="actions-cell">
                   <div className="action-buttons">
                     <Link to={`/employees/${employee.id}`} className="btn btn-secondary btn-small">
-                      Ver/Editar
+                      {canEdit ? 'Ver/Editar' : 'Ver'}
                     </Link>
-                    <button
-                      onClick={() => handleToggleActive(employee)}
-                      disabled={togglingId === employee.id}
-                      className={`btn ${employee.isActive ? 'btn-warning' : 'btn-success'} btn-small`}
-                      title={employee.isActive ? 'Desactivar empleado (no podrá acceder al sistema)' : 'Activar empleado (podrá acceder al sistema)'}
-                    >
-                      {togglingId === employee.id ? '⏳ Cambiando...' : (employee.isActive ? '🚫 Desactivar' : '✅ Activar')}
-                    </button>
+                    {canManage && (
+                      <button
+                        onClick={() => handleToggleActive(employee)}
+                        disabled={togglingId === employee.id}
+                        className={`btn ${employee.isActive ? 'btn-warning' : 'btn-success'} btn-small`}
+                        title={employee.isActive ? 'Desactivar empleado (no podrá acceder al sistema)' : 'Activar empleado (podrá acceder al sistema)'}
+                      >
+                        {togglingId === employee.id ? '⏳ Cambiando...' : (employee.isActive ? '🚫 Desactivar' : '✅ Activar')}
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
