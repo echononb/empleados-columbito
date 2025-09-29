@@ -38,6 +38,7 @@ const UserManagement: React.FC = () => {
         uid: 'user1',
         email: 'admin@columbito.com',
         role: 'admin',
+        isActive: true,
         lastLogin: new Date().toISOString(),
         createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
       },
@@ -45,6 +46,7 @@ const UserManagement: React.FC = () => {
         uid: 'user2',
         email: 'usuario@empresa.com',
         role: 'user',
+        isActive: true,
         lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
         createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
       },
@@ -52,6 +54,7 @@ const UserManagement: React.FC = () => {
         uid: 'user3',
         email: 'jefe@construccion.com',
         role: 'user',
+        isActive: true,
         lastLogin: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
       }
