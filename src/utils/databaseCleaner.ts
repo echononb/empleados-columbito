@@ -1,4 +1,4 @@
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export class DatabaseCleaner {

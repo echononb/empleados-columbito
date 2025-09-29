@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { ClientService, Client } from '../services/clientService';
 
 const ClientList: React.FC = () => {

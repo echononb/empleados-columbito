@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { EmployeeService, Employee } from '../services/employeeService';
 import PhotoUpload from './PhotoUpload';
@@ -126,13 +126,7 @@ const EmployeeWizard: React.FC = () => {
     }
   ];
 
-  useEffect(() => {
-    if (isEditing) {
-      loadEmployeeData();
-    }
-  }, [id, isEditing]);
-
-  const loadEmployeeData = async () => {
+  const loadEmployeeData = useCallback(async () => {
     if (!id) return;
 
     setLoading(true);
@@ -151,7 +145,13 @@ const EmployeeWizard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    if (isEditing) {
+      loadEmployeeData();
+    }
+  }, [isEditing, loadEmployeeData]);
 
   const validateStep = (step: number): boolean => {
     const newErrors: {[key: string]: string} = {};

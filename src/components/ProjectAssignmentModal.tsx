@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { EmployeeService, Employee } from '../services/employeeService';
 import { ProjectService, Project } from '../services/projectService';
 
@@ -20,13 +20,7 @@ const ProjectAssignmentModal: React.FC<ProjectAssignmentModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (isOpen && project) {
-      loadData();
-    }
-  }, [isOpen, project]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!project) return;
 
     setLoading(true);
@@ -46,7 +40,13 @@ const ProjectAssignmentModal: React.FC<ProjectAssignmentModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [project]);
+
+  useEffect(() => {
+    if (isOpen && project) {
+      loadData();
+    }
+  }, [isOpen, project, loadData]);
 
   const filteredEmployees = employees.filter(employee => {
     if (!searchTerm.trim()) return true;

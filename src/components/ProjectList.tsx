@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
 import ProjectAssignmentModal from './ProjectAssignmentModal';
 import { ProjectService, Project } from '../services/projectService';
 import { ClientService, Client } from '../services/clientService';

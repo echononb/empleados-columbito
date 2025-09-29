@@ -20,32 +20,6 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
   const [error, setError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Check if Firebase is configured
-    if (!storage) {
-      setError('La carga de fotos estará disponible una vez que se configure Firebase. Por ahora puedes continuar sin foto.');
-      return;
-    }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Por favor selecciona un archivo de imagen válido.');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('La imagen debe ser menor a 5MB.');
-      return;
-    }
-
-    setError('');
-    await uploadPhoto(file);
-  }, []);
-
   const uploadPhoto = useCallback(async (file: File) => {
     setUploading(true);
     setError('');
@@ -95,6 +69,32 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
       setUploading(false);
     }
   }, [onPhotoUploaded]);
+
+  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check if Firebase is configured
+    if (!storage) {
+      setError('La carga de fotos estará disponible una vez que se configure Firebase. Por ahora puedes continuar sin foto.');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Por favor selecciona un archivo de imagen válido.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('La imagen debe ser menor a 5MB.');
+      return;
+    }
+
+    setError('');
+    await uploadPhoto(file);
+  }, [uploadPhoto]);
 
   const handleRemovePhoto = async () => {
     if (!currentPhotoUrl || !storage) return;
