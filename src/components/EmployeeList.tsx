@@ -21,6 +21,14 @@ const EmployeeList: React.FC = () => {
   const canEdit = userRole === 'digitador' || userRole === 'administrador';
   const canManage = userRole === 'administrador';
 
+  // Debug logging
+  console.log('EmployeeList - userRole:', userRole);
+  console.log('EmployeeList - canEdit:', canEdit);
+  console.log('EmployeeList - canManage:', canManage);
+  console.log('EmployeeList - userRole type:', typeof userRole);
+  console.log('EmployeeList - userRole === "digitador":', userRole === 'digitador');
+  console.log('EmployeeList - userRole === "administrador":', userRole === 'administrador');
+
   // Load employees and projects from Firestore
   const loadData = async () => {
     try {
@@ -116,11 +124,25 @@ const EmployeeList: React.FC = () => {
   return (
     <div className="employee-list">
       <div className="employee-list-header">
-        <h2>Lista de Empleados</h2>
+        <div>
+          <h2>Lista de Empleados</h2>
+          <div className="user-role-info">
+            <small>Rol actual: <strong>{userRole || 'Cargando...'}</strong></small>
+            {canEdit && <small style={{ color: '#28a745', marginLeft: '10px' }}>✅ Tiene permisos para editar</small>}
+            {!canEdit && userRole && <small style={{ color: '#dc3545', marginLeft: '10px' }}>❌ No tiene permisos para editar</small>}
+          </div>
+        </div>
         {canEdit && (
           <Link to="/employees/new" className="btn btn-primary">
             Agregar Empleado
           </Link>
+        )}
+        {!canEdit && userRole && (
+          <div className="permission-denied">
+            <small style={{ color: '#6c757d' }}>
+              Solo usuarios con rol "Digitador" o "Administrador" pueden agregar empleados
+            </small>
+          </div>
         )}
       </div>
 
