@@ -85,6 +85,10 @@ const Reports: React.FC = () => {
         .filter(name => name)
         .join('; ');
 
+      const lastAssignedProject = emp.lastAssignedProject
+        ? projects.find(p => p.id === emp.lastAssignedProject)?.name || 'Proyecto no encontrado'
+        : 'Ninguno';
+
       return {
         'Código Empleado': emp.employeeCode,
         'DNI': emp.dni,
@@ -105,6 +109,10 @@ const Reports: React.FC = () => {
         'Sexo': emp.sexo,
         'Número Fotocheck': emp.numeroFotocheck,
         'Estado': emp.isActive ? 'Activo' : 'Inactivo',
+        'Fecha Desactivación': emp.deactivationDate ? new Date(emp.deactivationDate).toLocaleDateString('es-PE') : '',
+        'Motivo Desactivación': emp.deactivationReason || '',
+        'Fecha Reactivación': emp.activationDate ? new Date(emp.activationDate).toLocaleDateString('es-PE') : '',
+        'Último Proyecto Asignado': lastAssignedProject,
         'Proyectos Asignados': assignedProjectNames || 'Ninguno',
         'Cantidad Proyectos': emp.assignedProjects.length
       };

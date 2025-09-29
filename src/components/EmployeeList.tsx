@@ -1,58 +1,72 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { EmployeeService, Employee } from '../services/employeeService';
+import { ProjectService, Project } from '../services/projectService';
 import LazyImage from './LazyImage';
 import { useAuth } from '../contexts/AuthContext';
 
 const EmployeeList: React.FC = () => {
   const { userRole } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string>('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusChangeEmployee, setStatusChangeEmployee] = useState<Employee | null>(null);
 
   // Check if user can edit employees
   const canEdit = userRole === 'digitador' || userRole === 'administrador';
   const canManage = userRole === 'administrador';
 
-  // Load employees from Firestore
-  const loadEmployees = async () => {
+  // Load employees and projects from Firestore
+  const loadData = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const employeeData = await EmployeeService.getAllEmployees();
+      const [employeeData, projectData] = await Promise.all([
+        EmployeeService.getAllEmployees(),
+        ProjectService.getAllProjects()
+      ]);
+
       setEmployees(employeeData);
+      setProjects(projectData);
     } catch (error) {
-      console.error('Error loading employees:', error);
-      setError('Error al cargar los empleados desde la base de datos');
+      console.error('Error loading data:', error);
+      setError('Error al cargar los datos desde la base de datos');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleActive = async (employee: Employee) => {
-    if (!employee.id) return;
+  const handleToggleActive = (employee: Employee) => {
+    setStatusChangeEmployee(employee);
+    setShowStatusModal(true);
+  };
 
-    const action = employee.isActive ? 'desactivar' : 'activar';
-    const confirmMessage = `¿Estás seguro de que quieres ${action} al empleado?\n\n${employee.apellidoPaterno} ${employee.apellidoMaterno}, ${employee.nombres}\nDNI: ${employee.dni}\nCódigo: ${employee.employeeCode}\n\nEl empleado ${employee.isActive ? 'no podrá acceder al sistema' : 'podrá acceder nuevamente'}.`;
+  const handleStatusChange = async (options: {
+    deactivationDate?: string;
+    deactivationReason?: string;
+    activationDate?: string;
+    assignedProject?: string;
+  }) => {
+    if (!statusChangeEmployee?.id) return;
 
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+    const newStatus = !statusChangeEmployee.isActive;
+    const action = newStatus ? 'activar' : 'desactivar';
 
-    setTogglingId(employee.id);
+    setTogglingId(statusChangeEmployee.id);
     try {
-      await EmployeeService.updateEmployee(employee.id, {
-        isActive: !employee.isActive,
-        updatedAt: new Date().toISOString()
-      });
-      // Reload employees after status change
-      await loadEmployees();
+      await EmployeeService.updateEmployeeStatus(statusChangeEmployee.id, newStatus, options);
+      // Reload data after status change
+      await loadData();
+      setShowStatusModal(false);
+      setStatusChangeEmployee(null);
     } catch (error) {
-      console.error('Error toggling employee status:', error);
+      console.error('Error changing employee status:', error);
       setError(`Error al ${action} el empleado. Inténtalo de nuevo.`);
     } finally {
       setTogglingId(null);
@@ -60,7 +74,7 @@ const EmployeeList: React.FC = () => {
   };
 
   useEffect(() => {
-    loadEmployees();
+    loadData();
   }, []);
 
   // Helper function to properly display dates without timezone issues
@@ -217,6 +231,197 @@ const EmployeeList: React.FC = () => {
           {searchTerm ? 'No se encontraron empleados que coincidan con la búsqueda.' : 'No hay empleados registrados.'}
         </div>
       )}
+
+      {showStatusModal && statusChangeEmployee && (
+        <StatusChangeModal
+          employee={statusChangeEmployee}
+          projects={projects}
+          onConfirm={handleStatusChange}
+          onClose={() => {
+            setShowStatusModal(false);
+            setStatusChangeEmployee(null);
+          }}
+          loading={togglingId === statusChangeEmployee.id}
+        />
+      )}
+    </div>
+  );
+};
+
+// Status Change Modal Component
+interface StatusChangeModalProps {
+  employee: Employee;
+  projects: Project[];
+  onConfirm: (options: {
+    deactivationDate?: string;
+    deactivationReason?: string;
+    activationDate?: string;
+    assignedProject?: string;
+  }) => void;
+  onClose: () => void;
+  loading: boolean;
+}
+
+const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
+  employee,
+  projects,
+  onConfirm,
+  onClose,
+  loading
+}) => {
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    reason: '',
+    assignedProject: ''
+  });
+
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const isDeactivating = employee.isActive;
+
+  const validateForm = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+
+    if (!formData.date) {
+      newErrors.date = 'La fecha es requerida';
+    }
+
+    if (isDeactivating && !formData.reason.trim()) {
+      newErrors.reason = 'El motivo de desactivación es requerido';
+    }
+
+    if (!isDeactivating && !formData.assignedProject) {
+      newErrors.assignedProject = 'Debe seleccionar un proyecto para asignar';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    if (isDeactivating) {
+      onConfirm({
+        deactivationDate: formData.date,
+        deactivationReason: formData.reason
+      });
+    } else {
+      onConfirm({
+        activationDate: formData.date,
+        assignedProject: formData.assignedProject
+      });
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>
+            {isDeactivating ? '🚫 Desactivar Empleado' : '✅ Reactivar Empleado'}
+          </h3>
+          <button type="button" onClick={onClose} className="modal-close">×</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="employee-info">
+            <div className="employee-details">
+              <h4>{employee.apellidoPaterno} {employee.apellidoMaterno}, {employee.nombres}</h4>
+              <p><strong>DNI:</strong> {employee.dni}</p>
+              <p><strong>Código:</strong> {employee.employeeCode}</p>
+              <p><strong>Puesto:</strong> {employee.puesto}</p>
+            </div>
+          </div>
+
+          <div className="status-change-info">
+            <div className={`status-indicator ${isDeactivating ? 'status-deactivating' : 'status-activating'}`}>
+              {isDeactivating
+                ? 'El empleado será desactivado y no podrá acceder al sistema'
+                : 'El empleado será reactivado y podrá acceder al sistema nuevamente'
+              }
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="date">
+              {isDeactivating ? 'Fecha de Desactivación' : 'Fecha de Reactivación'} *
+            </label>
+            <input
+              type="date"
+              id="date"
+              name="date"
+              value={formData.date}
+              onChange={handleInputChange}
+              className={errors.date ? 'error' : ''}
+              max={new Date().toISOString().split('T')[0]}
+            />
+            {errors.date && <span className="error-message">{errors.date}</span>}
+          </div>
+
+          {isDeactivating && (
+            <div className="form-group">
+              <label htmlFor="reason">Motivo de Desactivación *</label>
+              <textarea
+                id="reason"
+                name="reason"
+                value={formData.reason}
+                onChange={handleInputChange}
+                placeholder="Ej: Renuncia voluntaria, Terminación de contrato, etc."
+                rows={3}
+                className={errors.reason ? 'error' : ''}
+              />
+              {errors.reason && <span className="error-message">{errors.reason}</span>}
+            </div>
+          )}
+
+          {!isDeactivating && (
+            <div className="form-group">
+              <label htmlFor="assignedProject">Proyecto a Asignar *</label>
+              <select
+                id="assignedProject"
+                name="assignedProject"
+                value={formData.assignedProject}
+                onChange={handleInputChange}
+                className={errors.assignedProject ? 'error' : ''}
+              >
+                <option value="">Seleccionar proyecto...</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name} - {project.contrato}
+                  </option>
+                ))}
+              </select>
+              {errors.assignedProject && <span className="error-message">{errors.assignedProject}</span>}
+              <small className="help-text">
+                El empleado será asignado automáticamente a este proyecto al reactivarse
+              </small>
+            </div>
+          )}
+
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
+              Cancelar
+            </button>
+            <button type="submit" disabled={loading} className={`btn ${isDeactivating ? 'btn-warning' : 'btn-success'}`}>
+              {loading ? 'Procesando...' : (isDeactivating ? '🚫 Desactivar Empleado' : '✅ Reactivar Empleado')}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

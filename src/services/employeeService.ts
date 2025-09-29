@@ -83,6 +83,11 @@ export interface Employee {
   isActive: boolean;
   creationStep: number; // 1-6 for the 6 steps of creation
   draftData?: Partial<Employee>; // For storing incomplete data
+  // Status management fields
+  deactivationDate?: string;
+  activationDate?: string;
+  deactivationReason?: string;
+  lastAssignedProject?: string; // Project assigned when reactivated
   createdAt?: string;
   updatedAt?: string;
 }
@@ -336,6 +341,46 @@ export class EmployeeService {
       reader.onerror = () => reject(new Error('Error al leer el archivo'));
       reader.readAsDataURL(file);
     });
+  }
+
+  static async updateEmployeeStatus(
+    id: string,
+    isActive: boolean,
+    options?: {
+      deactivationDate?: string;
+      deactivationReason?: string;
+      activationDate?: string;
+      assignedProject?: string;
+    }
+  ): Promise<void> {
+    try {
+      const updateData: Partial<Employee> = {
+        isActive,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (!isActive) {
+        // Deactivating employee
+        updateData.deactivationDate = options?.deactivationDate || new Date().toISOString().split('T')[0];
+        updateData.deactivationReason = options?.deactivationReason;
+      } else {
+        // Activating employee
+        updateData.activationDate = options?.activationDate || new Date().toISOString().split('T')[0];
+        if (options?.assignedProject) {
+          updateData.lastAssignedProject = options.assignedProject;
+          // Add to assigned projects if not already there
+          const employee = await this.getEmployeeById(id);
+          if (employee && !employee.assignedProjects.includes(options.assignedProject)) {
+            updateData.assignedProjects = [...employee.assignedProjects, options.assignedProject];
+          }
+        }
+      }
+
+      await this.updateEmployee(id, updateData);
+    } catch (error) {
+      console.error('Error updating employee status:', error);
+      throw error;
+    }
   }
 
   private static generateEmployeeCode(): string {
