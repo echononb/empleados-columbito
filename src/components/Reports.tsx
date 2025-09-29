@@ -44,24 +44,149 @@ const Reports: React.FC = () => {
     }
   };
 
-  const exportToExcel = (data: any[], filename: string) => {
+  const exportToExcel = (data: any[], filename: string, sheetName: string = 'Datos') => {
     if (data.length === 0) return;
 
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(data);
 
-    // Auto-size columns
-    const colWidths = Object.keys(data[0] || {}).map(key => ({
-      wch: Math.max(key.length, ...data.map(row => String(row[key] || '').length))
-    }));
+    // Enhanced column auto-sizing with better calculations
+    const colWidths = Object.keys(data[0] || {}).map(key => {
+      const headerLength = key.length;
+      const maxDataLength = Math.max(
+        ...data.map(row => {
+          const value = row[key];
+          if (value === null || value === undefined) return 0;
+          if (typeof value === 'number') return value.toString().length;
+          if (typeof value === 'boolean') return value ? 4 : 5; // "true" or "false"
+          return String(value).length;
+        })
+      );
+      return { wch: Math.max(headerLength, maxDataLength, 10) + 2 }; // Minimum 10, +2 for padding
+    });
     ws['!cols'] = colWidths;
 
     // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
     // Save file
     XLSX.writeFile(wb, filename);
+  };
+
+  const exportCompleteReport = () => {
+    const wb = XLSX.utils.book_new();
+    const timestamp = new Date().toISOString().split('T')[0];
+
+    // 1. Employees Sheet
+    const employeeData = employees.map(emp => {
+      const assignedProjectNames = emp.assignedProjects
+        .map(projectId => projects.find(p => p.id === projectId)?.name)
+        .filter(name => name)
+        .join('; ');
+
+      return {
+        'Código Empleado': emp.employeeCode,
+        'DNI': emp.dni,
+        'Apellido Paterno': emp.apellidoPaterno,
+        'Apellido Materno': emp.apellidoMaterno,
+        'Nombres': emp.nombres,
+        'Fecha Nacimiento': emp.fechaNacimiento ? new Date(emp.fechaNacimiento).toLocaleDateString('es-PE') : '',
+        'Edad': EmployeeService.calculateAge(emp.fechaNacimiento),
+        'Fecha Ingreso': emp.fechaIngreso ? new Date(emp.fechaIngreso).toLocaleDateString('es-PE') : '',
+        'Puesto': emp.puesto,
+        'Régimen Laboral': emp.regimenLaboral,
+        'Estado Civil': emp.estadoCivil,
+        'Teléfono Celular': emp.telefonoCelular,
+        'Teléfono Fijo': emp.telefonoFijo,
+        'Email': emp.email,
+        'Dirección': emp.direccionActual,
+        'Referencia': emp.referenciaDireccion,
+        'Sexo': emp.sexo,
+        'Número Fotocheck': emp.numeroFotocheck,
+        'Estado': emp.isActive ? 'Activo' : 'Inactivo',
+        'Proyectos Asignados': assignedProjectNames || 'Ninguno',
+        'Cantidad Proyectos': emp.assignedProjects.length
+      };
+    });
+
+    const wsEmployees = XLSX.utils.json_to_sheet(employeeData);
+    wsEmployees['!cols'] = Object.keys(employeeData[0] || {}).map(() => ({ wch: 15 }));
+    XLSX.utils.book_append_sheet(wb, wsEmployees, 'Empleados');
+
+    // 2. Projects Sheet
+    const projectData = projects.map(proj => {
+      const client = clients.find(c => c.id === proj.clientId);
+      const assignedEmployeeNames = proj.assignedEmployees
+        .map(empId => {
+          const emp = employees.find(e => e.id === empId);
+          return emp ? `${emp.apellidoPaterno} ${emp.apellidoMaterno}, ${emp.nombres}` : '';
+        })
+        .filter(name => name)
+        .join('; ');
+
+      return {
+        'Nombre Proyecto': proj.name,
+        'Contrato': proj.contrato,
+        'Cliente': client?.name || 'N/A',
+        'RUC Cliente': client?.ruc || 'N/A',
+        'Estado': proj.status === 'active' ? 'Activo' :
+                 proj.status === 'completed' ? 'Completado' : 'En Espera',
+        'Fecha Inicio': proj.startDate ? new Date(proj.startDate).toLocaleDateString('es-PE') : '',
+        'Fecha Fin': proj.endDate ? new Date(proj.endDate).toLocaleDateString('es-PE') : '',
+        'Empleados Asignados': assignedEmployeeNames || 'Ninguno',
+        'Cantidad Empleados': proj.assignedEmployees.length,
+        'Descripción': proj.description
+      };
+    });
+
+    const wsProjects = XLSX.utils.json_to_sheet(projectData);
+    wsProjects['!cols'] = Object.keys(projectData[0] || {}).map(() => ({ wch: 20 }));
+    XLSX.utils.book_append_sheet(wb, wsProjects, 'Proyectos');
+
+    // 3. Clients Sheet
+    const clientData = clients.map(client => {
+      const clientProjects = projects.filter(project => project.clientId === client.id!);
+      const activeProjects = clientProjects.filter(project => project.status === 'active');
+      const completedProjects = clientProjects.filter(project => project.status === 'completed');
+      const onHoldProjects = clientProjects.filter(project => project.status === 'on-hold');
+
+      return {
+        'Nombre Cliente': client.name,
+        'RUC': client.ruc,
+        'Email': client.contactInfo.email,
+        'Teléfono': client.contactInfo.phone,
+        'Dirección': client.contactInfo.address,
+        'Proyectos Activos': activeProjects.length,
+        'Proyectos Completados': completedProjects.length,
+        'Proyectos en Espera': onHoldProjects.length,
+        'Total Proyectos': clientProjects.length,
+        'Fecha Creación': client.createdAt ? new Date(client.createdAt).toLocaleDateString('es-PE') : 'N/A'
+      };
+    });
+
+    const wsClients = XLSX.utils.json_to_sheet(clientData);
+    wsClients['!cols'] = Object.keys(clientData[0] || {}).map(() => ({ wch: 18 }));
+    XLSX.utils.book_append_sheet(wb, wsClients, 'Clientes');
+
+    // 4. Summary Sheet
+    const summaryData = [
+      { 'Métrica': 'Total Empleados', 'Valor': employees.length, 'Activos': employees.filter(e => e.isActive).length },
+      { 'Métrica': 'Total Proyectos', 'Valor': projects.length, 'Activos': projects.filter(p => p.status === 'active').length },
+      { 'Métrica': 'Total Clientes', 'Valor': clients.length, 'Con Proyectos': clients.filter(c => projects.some(p => p.clientId === c.id)).length },
+      { 'Métrica': 'Fecha del Reporte', 'Valor': new Date().toLocaleDateString('es-PE'), 'Hora': new Date().toLocaleTimeString('es-PE') }
+    ];
+
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    wsSummary['!cols'] = [
+      { wch: 20 }, // Métrica
+      { wch: 10 }, // Valor
+      { wch: 10 }  // Activos/Con Proyectos
+    ];
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
+
+    // Save the complete workbook
+    XLSX.writeFile(wb, `reporte-completo-empleados-columbito-${timestamp}.xlsx`);
   };
 
   // Get filtered and paginated data
@@ -185,12 +310,12 @@ const Reports: React.FC = () => {
       );
     }
 
-    // Transform data for export
+    // Transform data for export with better formatting
     const reportData = filteredEmployees.map(emp => {
       const assignedProjectNames = emp.assignedProjects
         .map(projectId => projects.find(p => p.id === projectId)?.name)
         .filter(name => name)
-        .join(', ');
+        .join('; ');
 
       return {
         'Código Empleado': emp.employeeCode,
@@ -198,21 +323,27 @@ const Reports: React.FC = () => {
         'Apellido Paterno': emp.apellidoPaterno,
         'Apellido Materno': emp.apellidoMaterno,
         'Nombres': emp.nombres,
-        'Fecha Ingreso': emp.fechaIngreso,
+        'Fecha Nacimiento': emp.fechaNacimiento ? new Date(emp.fechaNacimiento).toLocaleDateString('es-PE') : '',
+        'Edad': EmployeeService.calculateAge(emp.fechaNacimiento),
+        'Fecha Ingreso': emp.fechaIngreso ? new Date(emp.fechaIngreso).toLocaleDateString('es-PE') : '',
         'Puesto': emp.puesto,
         'Régimen Laboral': emp.regimenLaboral,
-        'Teléfono Celular': emp.telefonoCelular,
-        'Email': emp.email,
         'Estado Civil': emp.estadoCivil,
+        'Teléfono Celular': emp.telefonoCelular,
+        'Teléfono Fijo': emp.telefonoFijo,
+        'Email': emp.email,
         'Dirección': emp.direccionActual,
-        'Edad': EmployeeService.calculateAge(emp.fechaNacimiento),
+        'Referencia': emp.referenciaDireccion,
+        'Sexo': emp.sexo,
+        'Estado': emp.isActive ? 'Activo' : 'Inactivo',
         'Proyectos Asignados': assignedProjectNames || 'Ninguno',
-        'Cantidad Proyectos': emp.assignedProjects.length,
-        'Estado': emp.isActive ? 'Activo' : 'Inactivo'
+        'Cantidad Proyectos': emp.assignedProjects.length
       };
     });
 
-    exportToExcel(reportData, `reporte-empleados-${new Date().toISOString().split('T')[0]}.xlsx`);
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `reporte-empleados-${timestamp}.xlsx`;
+    exportToExcel(reportData, filename, 'Empleados');
   };
 
   const generateProjectReport = () => {
@@ -228,27 +359,42 @@ const Reports: React.FC = () => {
 
     const reportData = filteredProjects.map(proj => {
       const client = clients.find(c => c.id === proj.clientId);
+      const assignedEmployeeNames = proj.assignedEmployees
+        .map(empId => {
+          const emp = employees.find(e => e.id === empId);
+          return emp ? `${emp.apellidoPaterno} ${emp.apellidoMaterno}, ${emp.nombres}` : '';
+        })
+        .filter(name => name)
+        .join('; ');
+
       return {
         'Nombre Proyecto': proj.name,
         'Contrato': proj.contrato,
         'Cliente': client?.name || 'N/A',
+        'RUC Cliente': client?.ruc || 'N/A',
         'Estado': proj.status === 'active' ? 'Activo' :
                  proj.status === 'completed' ? 'Completado' : 'En Espera',
-        'Fecha Inicio': proj.startDate,
-        'Fecha Fin': proj.endDate,
-        'Empleados Asignados': proj.assignedEmployees.length,
+        'Fecha Inicio': proj.startDate ? new Date(proj.startDate).toLocaleDateString('es-PE') : '',
+        'Fecha Fin': proj.endDate ? new Date(proj.endDate).toLocaleDateString('es-PE') : '',
+        'Empleados Asignados': assignedEmployeeNames || 'Ninguno',
+        'Cantidad Empleados': proj.assignedEmployees.length,
         'Descripción': proj.description
       };
     });
 
-    exportToExcel(reportData, `reporte-proyectos-${new Date().toISOString().split('T')[0]}.xlsx`);
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `reporte-proyectos-${timestamp}.xlsx`;
+    exportToExcel(reportData, filename, 'Proyectos');
   };
 
   const generateClientReport = () => {
     const reportData = clients.map(client => {
       const clientProjects = projects.filter(project => project.clientId === client.id!);
       const activeProjects = clientProjects.filter(project => project.status === 'active');
-      const inactiveProjects = clientProjects.filter(project => project.status !== 'active');
+      const completedProjects = clientProjects.filter(project => project.status === 'completed');
+      const onHoldProjects = clientProjects.filter(project => project.status === 'on-hold');
+
+      const projectNames = clientProjects.map(p => p.name).join('; ');
 
       return {
         'Nombre Cliente': client.name,
@@ -257,13 +403,17 @@ const Reports: React.FC = () => {
         'Teléfono': client.contactInfo.phone,
         'Dirección': client.contactInfo.address,
         'Proyectos Activos': activeProjects.length,
-        'Proyectos Inactivos': inactiveProjects.length,
+        'Proyectos Completados': completedProjects.length,
+        'Proyectos en Espera': onHoldProjects.length,
         'Total Proyectos': clientProjects.length,
-        'Fecha Creación': client.createdAt || 'N/A'
+        'Lista de Proyectos': projectNames || 'Ninguno',
+        'Fecha Creación': client.createdAt ? new Date(client.createdAt).toLocaleDateString('es-PE') : 'N/A'
       };
     });
 
-    exportToExcel(reportData, `reporte-clientes-${new Date().toISOString().split('T')[0]}.xlsx`);
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `reporte-clientes-${timestamp}.xlsx`;
+    exportToExcel(reportData, filename, 'Clientes');
   };
 
   const handleExport = () => {
@@ -373,12 +523,29 @@ const Reports: React.FC = () => {
         )}
 
         <div className="export-section">
-          <button onClick={() => setShowVisualization(!showVisualization)} className="btn btn-secondary">
-            {showVisualization ? '📊 Ocultar Vista Previa' : '👁️ Ver Vista Previa'}
-          </button>
-          <button onClick={handleExport} className="btn btn-primary">
-            📊 Exportar Reporte Excel
-          </button>
+          <div className="export-info">
+            <h4>Opciones de Exportación Excel</h4>
+            <div className="export-options">
+              <div className="option-item">
+                <strong>📊 Reporte Individual:</strong> Exporta solo los datos del tipo seleccionado con filtros aplicados
+              </div>
+              <div className="option-item">
+                <strong>📈 Reporte Completo:</strong> Exporta todos los empleados, proyectos y clientes en un archivo Excel con múltiples hojas
+              </div>
+            </div>
+          </div>
+
+          <div className="export-buttons">
+            <button onClick={() => setShowVisualization(!showVisualization)} className="btn btn-secondary">
+              {showVisualization ? '📊 Ocultar Vista Previa' : '👁️ Ver Vista Previa'}
+            </button>
+            <button onClick={handleExport} className="btn btn-primary">
+              📊 Exportar Reporte Individual
+            </button>
+            <button onClick={exportCompleteReport} className="btn btn-success">
+              📈 Exportar Reporte Completo
+            </button>
+          </div>
         </div>
       </div>
 
