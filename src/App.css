@@ -1555,6 +1555,70 @@ main {
   color: white;
 }
 
+/* User Management Styles */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.action-buttons .role-select {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: white;
+  min-width: 100px;
+}
+
+.action-buttons .btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+  min-width: 30px;
+}
+
+.btn-warning {
+  background-color: #f39c12;
+  border-color: #f39c12;
+  color: white;
+}
+
+.btn-warning:hover {
+  background-color: #e67e22;
+  border-color: #d35400;
+}
+
+/* Delete Confirmation Modal */
+.delete-confirmation {
+  text-align: center;
+  padding: 20px;
+}
+
+.warning-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.delete-confirmation h4 {
+  color: #e53e3e;
+  margin-bottom: 10px;
+}
+
+.delete-confirmation p {
+  color: #666;
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.user-info-delete {
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #e53e3e;
+}
+
 /* Responsive Auth */
 @media (max-width: 480px) {
   .auth-card {

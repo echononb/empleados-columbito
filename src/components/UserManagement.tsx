@@ -6,6 +6,7 @@ interface User {
   uid: string;
   email: string;
   role: 'admin' | 'user';
+  isActive: boolean;
   lastLogin?: string;
   createdAt?: string;
 }
@@ -22,6 +23,7 @@ const UserManagement: React.FC = () => {
     projects: 0,
     totalRecords: 0
   });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -55,11 +57,12 @@ const UserManagement: React.FC = () => {
       }
     ];
 
-    // Load roles from localStorage
+    // Load roles and status from localStorage
     const usersWithRoles = mockUsers.map(user => ({
       ...user,
       role: (localStorage.getItem(`userRole_${user.uid}`) as 'admin' | 'user') ||
-            (user.email === 'admin@columbito.com' ? 'admin' : 'user')
+            (user.email === 'admin@columbito.com' ? 'admin' : 'user'),
+      isActive: localStorage.getItem(`userStatus_${user.uid}`) !== 'inactive'
     }));
 
     setUsers(usersWithRoles);
@@ -126,6 +129,61 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleToggleUserStatus = async (userId: string) => {
+    if (userId === currentUser?.uid) {
+      alert('No puedes desactivar tu propia cuenta.');
+      return;
+    }
+
+    setSaving(userId);
+    try {
+      // Get current status from localStorage
+      const currentStatus = localStorage.getItem(`userStatus_${userId}`) !== 'inactive';
+      const newStatus = !currentStatus;
+
+      localStorage.setItem(`userStatus_${userId}`, newStatus ? 'active' : 'inactive');
+
+      setUsers(prev => prev.map(user =>
+        user.uid === userId ? { ...user, isActive: newStatus } : user
+      ));
+
+      alert(`Usuario ${newStatus ? 'activado' : 'desactivado'} exitosamente.`);
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      alert('Error al cambiar el estado del usuario.');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (userId === currentUser?.uid) {
+      alert('No puedes eliminar tu propia cuenta.');
+      return;
+    }
+
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    setSaving(userId);
+    try {
+      // Remove user data from localStorage
+      localStorage.removeItem(`userRole_${userId}`);
+      localStorage.removeItem(`userStatus_${userId}`);
+
+      setUsers(prev => prev.filter(user => user.uid !== userId));
+
+      alert('Usuario eliminado exitosamente.');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Error al eliminar el usuario.');
+    } finally {
+      setSaving(null);
+      setShowDeleteConfirm(null);
+    }
+  };
+
   const getRoleBadgeColor = (role: string) => {
     return role === 'admin' ? '#e74c3c' : '#3498db';
   };
@@ -172,6 +230,7 @@ const UserManagement: React.FC = () => {
           <thead>
             <tr>
               <th>Email</th>
+              <th>Estado</th>
               <th>Rol Actual</th>
               <th>Último Acceso</th>
               <th>Fecha de Creación</th>
@@ -186,6 +245,11 @@ const UserManagement: React.FC = () => {
                   {user.uid === currentUser?.uid && <span className="current-user-badge">(Tú)</span>}
                 </td>
                 <td>
+                  <span className={`status-badge ${user.isActive ? 'status-active' : 'status-inactive'}`}>
+                    {user.isActive ? 'Activo' : 'Inactivo'}
+                  </span>
+                </td>
+                <td>
                   <span
                     className="role-badge"
                     style={{ backgroundColor: getRoleBadgeColor(user.role) }}
@@ -196,16 +260,35 @@ const UserManagement: React.FC = () => {
                 <td>{user.lastLogin ? formatDate(user.lastLogin) : 'Nunca'}</td>
                 <td>{user.createdAt ? formatDate(user.createdAt) : 'N/A'}</td>
                 <td>
-                  <select
-                    value={user.role}
-                    onChange={(e) => handleRoleChange(user.uid, e.target.value as 'admin' | 'user')}
-                    disabled={saving === user.uid}
-                    className="role-select"
-                  >
-                    <option value="user">Usuario</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                  {saving === user.uid && <span className="saving-indicator">Guardando...</span>}
+                  <div className="action-buttons">
+                    <button
+                      onClick={() => handleToggleUserStatus(user.uid)}
+                      disabled={saving === user.uid || user.uid === currentUser?.uid}
+                      className={`btn btn-small ${user.isActive ? 'btn-warning' : 'btn-success'}`}
+                      title={user.isActive ? 'Desactivar usuario' : 'Activar usuario'}
+                    >
+                      {user.isActive ? '🚫' : '✅'}
+                    </button>
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user.uid, e.target.value as 'admin' | 'user')}
+                      disabled={saving === user.uid}
+                      className="role-select"
+                      title="Cambiar rol"
+                    >
+                      <option value="user">👤 Usuario</option>
+                      <option value="admin">👑 Admin</option>
+                    </select>
+                    <button
+                      onClick={() => setShowDeleteConfirm(user.uid)}
+                      disabled={saving === user.uid || user.uid === currentUser?.uid}
+                      className="btn btn-danger btn-small"
+                      title="Eliminar usuario"
+                    >
+                      🗑️
+                    </button>
+                    {saving === user.uid && <span className="saving-indicator">Guardando...</span>}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -287,6 +370,50 @@ const UserManagement: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Confirmar Eliminación</h3>
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="modal-close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="delete-confirmation">
+                <div className="warning-icon">⚠️</div>
+                <h4>¿Estás seguro de que quieres eliminar este usuario?</h4>
+                <p>Esta acción no se puede deshacer. Se eliminarán todos los datos asociados con este usuario.</p>
+                <div className="user-info-delete">
+                  <strong>Email:</strong> {users.find(u => u.uid === showDeleteConfirm)?.email}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="btn btn-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDeleteUser(showDeleteConfirm)}
+                className="btn btn-danger"
+                disabled={saving === showDeleteConfirm}
+              >
+                {saving === showDeleteConfirm ? 'Eliminando...' : 'Eliminar Usuario'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

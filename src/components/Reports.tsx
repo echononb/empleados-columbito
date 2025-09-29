@@ -70,23 +70,31 @@ const Reports: React.FC = () => {
 
     switch (reportType) {
       case 'employees':
-        data = employees.map(emp => ({
-          'Código Empleado': emp.employeeCode,
-          'DNI': emp.dni,
-          'Apellido Paterno': emp.apellidoPaterno,
-          'Apellido Materno': emp.apellidoMaterno,
-          'Nombres': emp.nombres,
-          'Fecha Ingreso': emp.fechaIngreso,
-          'Puesto': emp.puesto,
-          'Régimen Laboral': emp.regimenLaboral,
-          'Teléfono Celular': emp.telefonoCelular,
-          'Email': emp.email,
-          'Estado Civil': emp.estadoCivil,
-          'Dirección': emp.direccionActual,
-          'Edad': EmployeeService.calculateAge(emp.fechaNacimiento),
-          'Proyectos Asignados': emp.assignedProjects.length,
-          'Estado': emp.isActive ? 'Activo' : 'Inactivo'
-        }));
+        data = employees.map(emp => {
+          const assignedProjectNames = emp.assignedProjects
+            .map(projectId => projects.find(p => p.id === projectId)?.name)
+            .filter(name => name)
+            .join(', ');
+
+          return {
+            'Código Empleado': emp.employeeCode,
+            'DNI': emp.dni,
+            'Apellido Paterno': emp.apellidoPaterno,
+            'Apellido Materno': emp.apellidoMaterno,
+            'Nombres': emp.nombres,
+            'Fecha Ingreso': emp.fechaIngreso,
+            'Puesto': emp.puesto,
+            'Régimen Laboral': emp.regimenLaboral,
+            'Teléfono Celular': emp.telefonoCelular,
+            'Email': emp.email,
+            'Estado Civil': emp.estadoCivil,
+            'Dirección': emp.direccionActual,
+            'Edad': EmployeeService.calculateAge(emp.fechaNacimiento),
+            'Proyectos Asignados': assignedProjectNames || 'Ninguno',
+            'Cantidad Proyectos': emp.assignedProjects.length,
+            'Estado': emp.isActive ? 'Activo' : 'Inactivo'
+          };
+        });
 
         // Apply filters
         if (filters.projectId) {
@@ -125,15 +133,23 @@ const Reports: React.FC = () => {
         break;
 
       case 'clients':
-        data = clients.map(client => ({
-          'Nombre Cliente': client.name,
-          'RUC': client.ruc,
-          'Email': client.contactInfo.email,
-          'Teléfono': client.contactInfo.phone,
-          'Dirección': client.contactInfo.address,
-          'Proyectos Activos': client.projects.length,
-          'Fecha Creación': client.createdAt || 'N/A'
-        }));
+        data = clients.map(client => {
+          const clientProjects = projects.filter(project => project.clientId === client.id!);
+          const activeProjects = clientProjects.filter(project => project.status === 'active');
+          const inactiveProjects = clientProjects.filter(project => project.status !== 'active');
+
+          return {
+            'Nombre Cliente': client.name,
+            'RUC': client.ruc,
+            'Email': client.contactInfo.email,
+            'Teléfono': client.contactInfo.phone,
+            'Dirección': client.contactInfo.address,
+            'Proyectos Activos': activeProjects.length,
+            'Proyectos Inactivos': inactiveProjects.length,
+            'Total Proyectos': clientProjects.length,
+            'Fecha Creación': client.createdAt || 'N/A'
+          };
+        });
         break;
     }
 
@@ -170,23 +186,31 @@ const Reports: React.FC = () => {
     }
 
     // Transform data for export
-    const reportData = filteredEmployees.map(emp => ({
-      'Código Empleado': emp.employeeCode,
-      'DNI': emp.dni,
-      'Apellido Paterno': emp.apellidoPaterno,
-      'Apellido Materno': emp.apellidoMaterno,
-      'Nombres': emp.nombres,
-      'Fecha Ingreso': emp.fechaIngreso,
-      'Puesto': emp.puesto,
-      'Régimen Laboral': emp.regimenLaboral,
-      'Teléfono Celular': emp.telefonoCelular,
-      'Email': emp.email,
-      'Estado Civil': emp.estadoCivil,
-      'Dirección': emp.direccionActual,
-      'Edad': EmployeeService.calculateAge(emp.fechaNacimiento),
-      'Proyectos Asignados': emp.assignedProjects.length,
-      'Estado': emp.isActive ? 'Activo' : 'Inactivo'
-    }));
+    const reportData = filteredEmployees.map(emp => {
+      const assignedProjectNames = emp.assignedProjects
+        .map(projectId => projects.find(p => p.id === projectId)?.name)
+        .filter(name => name)
+        .join(', ');
+
+      return {
+        'Código Empleado': emp.employeeCode,
+        'DNI': emp.dni,
+        'Apellido Paterno': emp.apellidoPaterno,
+        'Apellido Materno': emp.apellidoMaterno,
+        'Nombres': emp.nombres,
+        'Fecha Ingreso': emp.fechaIngreso,
+        'Puesto': emp.puesto,
+        'Régimen Laboral': emp.regimenLaboral,
+        'Teléfono Celular': emp.telefonoCelular,
+        'Email': emp.email,
+        'Estado Civil': emp.estadoCivil,
+        'Dirección': emp.direccionActual,
+        'Edad': EmployeeService.calculateAge(emp.fechaNacimiento),
+        'Proyectos Asignados': assignedProjectNames || 'Ninguno',
+        'Cantidad Proyectos': emp.assignedProjects.length,
+        'Estado': emp.isActive ? 'Activo' : 'Inactivo'
+      };
+    });
 
     exportToExcel(reportData, `reporte-empleados-${new Date().toISOString().split('T')[0]}.xlsx`);
   };
@@ -221,15 +245,23 @@ const Reports: React.FC = () => {
   };
 
   const generateClientReport = () => {
-    const reportData = clients.map(client => ({
-      'Nombre Cliente': client.name,
-      'RUC': client.ruc,
-      'Email': client.contactInfo.email,
-      'Teléfono': client.contactInfo.phone,
-      'Dirección': client.contactInfo.address,
-      'Proyectos Activos': client.projects.length,
-      'Fecha Creación': client.createdAt || 'N/A'
-    }));
+    const reportData = clients.map(client => {
+      const clientProjects = projects.filter(project => project.clientId === client.id!);
+      const activeProjects = clientProjects.filter(project => project.status === 'active');
+      const inactiveProjects = clientProjects.filter(project => project.status !== 'active');
+
+      return {
+        'Nombre Cliente': client.name,
+        'RUC': client.ruc,
+        'Email': client.contactInfo.email,
+        'Teléfono': client.contactInfo.phone,
+        'Dirección': client.contactInfo.address,
+        'Proyectos Activos': activeProjects.length,
+        'Proyectos Inactivos': inactiveProjects.length,
+        'Total Proyectos': clientProjects.length,
+        'Fecha Creación': client.createdAt || 'N/A'
+      };
+    });
 
     exportToExcel(reportData, `reporte-clientes-${new Date().toISOString().split('T')[0]}.xlsx`);
   };
