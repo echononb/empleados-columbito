@@ -104,9 +104,10 @@ const UserManagement: React.FC = () => {
       // If updating current user, update context
       if (userId === currentUser?.uid) {
         await updateUserRole(newRole);
+        alert(`Tu rol ha sido actualizado exitosamente.`);
+      } else {
+        alert(`Rol de usuario actualizado exitosamente.\n\nNota: El usuario debe cerrar sesión y volver a iniciar sesión para que los cambios surtan efecto.`);
       }
-
-      alert(`Rol de usuario actualizado exitosamente.`);
     } catch (error) {
       console.error('Error updating user role:', error);
       alert('Error al actualizar el rol del usuario.');

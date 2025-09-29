@@ -6,7 +6,7 @@ import LazyImage from './LazyImage';
 import { useAuth } from '../contexts/AuthContext';
 
 const EmployeeList: React.FC = () => {
-  const { userRole } = useAuth();
+  const { userRole, refreshUserRole } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,6 +145,16 @@ const EmployeeList: React.FC = () => {
             <small>Rol actual: <strong>{userRole || 'Cargando...'}</strong></small>
             {canEdit && <small style={{ color: '#28a745', marginLeft: '10px' }}>✅ Tiene permisos para editar</small>}
             {!canEdit && userRole && <small style={{ color: '#dc3545', marginLeft: '10px' }}>❌ No tiene permisos para editar</small>}
+            {userRole && (
+              <button
+                onClick={refreshUserRole}
+                className="btn btn-secondary btn-small"
+                style={{ marginLeft: '10px', fontSize: '11px', padding: '2px 6px' }}
+                title="Actualizar rol desde el servidor"
+              >
+                🔄 Actualizar Rol
+              </button>
+            )}
           </div>
         </div>
         {canEdit && (
@@ -155,7 +165,8 @@ const EmployeeList: React.FC = () => {
         {!canEdit && userRole && (
           <div className="permission-denied">
             <small style={{ color: '#6c757d' }}>
-              Solo usuarios con rol "Digitador" o "Administrador" pueden agregar empleados
+              Solo usuarios con rol "Digitador" o "Administrador" pueden agregar empleados.
+              Si tu rol fue actualizado recientemente, haz clic en "Actualizar Rol" o cierra sesión y vuelve a iniciar sesión.
             </small>
           </div>
         )}

@@ -22,6 +22,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateUserRole: (role: 'consulta' | 'digitador' | 'administrador') => Promise<void>;
+  refreshUserRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -120,6 +121,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshUserRole = async () => {
+    if (user) {
+      try {
+        // Check for pending roles first
+        const pendingRole = await UserService.applyPendingRole(user.email!, user.uid);
+
+        // Get user profile from Firestore
+        const userProfile = await UserService.getUserProfile(user.uid);
+
+        // Use pending role if applied, otherwise use profile role
+        const finalRole = pendingRole || userProfile?.role;
+        setUserRole(finalRole || 'consulta');
+
+        // Update profile if pending role was applied
+        if (pendingRole && pendingRole !== userProfile?.role && userProfile) {
+          await UserService.updateUserProfile(user.uid, { role: pendingRole });
+        }
+
+      } catch (error) {
+        console.error('Error refreshing user role:', error);
+        // Fallback to localStorage or default role
+        const storedRole = localStorage.getItem(`userRole_${user.uid}`);
+        const defaultRole = user.email === 'admin@columbito.com' ? 'administrador' : 'consulta';
+        setUserRole(storedRole as 'consulta' | 'digitador' | 'administrador' || defaultRole);
+      }
+    }
+  };
+
 
   const value = {
     user,
@@ -130,7 +159,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loginWithGoogle,
     logout,
     resetPassword,
-    updateUserRole
+    updateUserRole,
+    refreshUserRole
   };
 
   return (
