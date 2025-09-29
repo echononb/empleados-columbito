@@ -18,16 +18,31 @@ const EmployeeList: React.FC = () => {
   const [statusChangeEmployee, setStatusChangeEmployee] = useState<Employee | null>(null);
 
   // Check if user can edit employees
-  const canEdit = userRole === 'digitador' || userRole === 'administrador';
-  const canManage = userRole === 'administrador';
+  // TEMPORARY FIX: Force canEdit for digitador role for debugging
+  const canEdit = (userRole === 'digitador' || userRole === 'administrador') ||
+                  (userRole && userRole.toLowerCase().trim() === 'digitador');
+  const canManage = userRole === 'administrador' ||
+                    (userRole && userRole.toLowerCase().trim() === 'administrador');
 
-  // Debug logging
-  console.log('EmployeeList - userRole:', userRole);
-  console.log('EmployeeList - canEdit:', canEdit);
-  console.log('EmployeeList - canManage:', canManage);
-  console.log('EmployeeList - userRole type:', typeof userRole);
-  console.log('EmployeeList - userRole === "digitador":', userRole === 'digitador');
-  console.log('EmployeeList - userRole === "administrador":', userRole === 'administrador');
+  // Debug logging - detailed role checking
+  console.log('=== EMPLOYEE LIST ROLE DEBUG ===');
+  console.log('userRole value:', userRole);
+  console.log('userRole type:', typeof userRole);
+  console.log('userRole length:', userRole?.length);
+  console.log('userRole === "digitador":', userRole === 'digitador');
+  console.log('userRole === "administrador":', userRole === 'administrador');
+  console.log('userRole === null:', userRole === null);
+  console.log('userRole === undefined:', userRole === undefined);
+  console.log('canEdit result:', canEdit);
+  console.log('canManage result:', canManage);
+
+  // Additional checks
+  if (userRole) {
+    console.log('userRole toLowerCase:', userRole.toLowerCase());
+    console.log('userRole trimmed:', userRole.trim());
+    console.log('userRole includes "digitador":', userRole.includes('digitador'));
+  }
+  console.log('================================');
 
   // Load employees and projects from Firestore
   const loadData = async () => {
