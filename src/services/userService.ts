@@ -521,30 +521,46 @@ export class UserService {
   static async applyPendingRole(email: string, uid: string): Promise<'consulta' | 'digitador' | 'administrador' | null> {
     const emailKey = email.toLowerCase();
 
+    console.log('=== APPLY PENDING ROLE ===');
+    console.log('Email:', email);
+    console.log('Email key:', emailKey);
+    console.log('UID:', uid);
+
     try {
       // Try Firebase first
       if (db) {
         try {
+          console.log('Checking Firebase for pending role...');
           const pendingRoleRef = doc(db, this.PENDING_ROLES_COLLECTION, emailKey);
           const pendingRoleSnap = await getDoc(pendingRoleRef);
+          console.log('Pending role document exists:', pendingRoleSnap.exists());
 
           if (pendingRoleSnap.exists()) {
             const pendingRoleData = pendingRoleSnap.data();
+            console.log('Pending role data:', pendingRoleData);
 
             // Update the user's profile with the assigned role
+            console.log('Updating user profile with pending role...');
             const userProfile = await this.getUserProfile(uid);
+            console.log('Current user profile:', userProfile);
             if (userProfile) {
               await this.updateUserProfile(uid, { role: pendingRoleData.role });
+              console.log('User profile updated successfully');
             }
 
             // Mark pending role as applied
+            console.log('Marking pending role as applied...');
             await updateDoc(pendingRoleRef, {
               status: 'applied',
               appliedAt: new Date().toISOString(),
               appliedToUid: uid
             });
+            console.log('Pending role marked as applied');
 
+            console.log('Returning pending role:', pendingRoleData.role);
             return pendingRoleData.role;
+          } else {
+            console.log('No pending role found in Firebase');
           }
         } catch (firebaseError) {
           console.warn('Firebase pending role application failed, trying localStorage:', firebaseError);
@@ -553,14 +569,19 @@ export class UserService {
 
       // Try localStorage fallback
       try {
+        console.log('Checking localStorage for pending role...');
         const localKey = `pending_role_${emailKey}`;
         const localPendingRole = JSON.parse(localStorage.getItem(localKey) || 'null');
+        console.log('Local pending role:', localPendingRole);
 
         if (localPendingRole && localPendingRole.status === 'pending') {
+          console.log('Found pending role in localStorage, applying...');
           // Update the user's profile with the assigned role
           const userProfile = await this.getUserProfile(uid);
+          console.log('Current user profile for localStorage:', userProfile);
           if (userProfile) {
             await this.updateUserProfile(uid, { role: localPendingRole.role });
+            console.log('User profile updated with localStorage role');
           }
 
           // Mark as applied in localStorage
@@ -568,6 +589,7 @@ export class UserService {
           localPendingRole.appliedAt = new Date().toISOString();
           localPendingRole.appliedToUid = uid;
           localStorage.setItem(localKey, JSON.stringify(localPendingRole));
+          console.log('LocalStorage pending role marked as applied');
 
           // Update master list
           const masterListKey = 'pending_roles_list';
@@ -577,12 +599,16 @@ export class UserService {
           );
           localStorage.setItem(masterListKey, JSON.stringify(updatedList));
 
+          console.log('Returning localStorage role:', localPendingRole.role);
           return localPendingRole.role;
+        } else {
+          console.log('No valid pending role in localStorage');
         }
       } catch (localStorageError) {
         console.warn('Error applying localStorage pending role:', localStorageError);
       }
 
+      console.log('No pending role found, returning null');
       return null;
     } catch (error) {
       console.error('Error applying pending role:', error);

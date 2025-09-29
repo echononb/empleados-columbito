@@ -50,20 +50,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (user) {
         try {
+          console.log('=== AUTH CONTEXT ROLE LOADING ===');
+          console.log('User email:', user.email);
+          console.log('User UID:', user.uid);
+
           // Check for pending roles first
+          console.log('Checking for pending roles...');
           const pendingRole = await UserService.applyPendingRole(user.email!, user.uid);
+          console.log('Pending role result:', pendingRole);
 
           // Initialize or get user profile from Firestore
+          console.log('Getting/creating user profile...');
           const userProfile = await UserService.initializeUserProfile(user);
+          console.log('User profile:', userProfile);
 
           // Use pending role if applied, otherwise use profile role
           const finalRole = pendingRole || userProfile.role;
+          console.log('Final role:', finalRole);
           setUserRole(finalRole);
 
           // Update profile if pending role was applied
           if (pendingRole && pendingRole !== userProfile.role) {
+            console.log('Updating profile with pending role...');
             await UserService.updateUserProfile(user.uid, { role: pendingRole });
           }
+          console.log('=== AUTH CONTEXT ROLE LOADING COMPLETE ===');
 
         } catch (error) {
           console.error('Error loading user profile:', error);
