@@ -1,22 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ClientService, Client } from '../services/clientService';
+import { ProjectService, Project } from '../services/projectService';
 
 const ClientList: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Load clients from Firebase
+  // Load clients and projects from Firebase
   const loadClients = async () => {
     try {
       setLoading(true);
-      const clientData = await ClientService.getAllClients();
+      const [clientData, projectData] = await Promise.all([
+        ClientService.getAllClients(),
+        ProjectService.getAllProjects()
+      ]);
       setClients(clientData);
+      setProjects(projectData);
     } catch (error) {
-      console.error('Error loading clients:', error);
+      console.error('Error loading clients and projects:', error);
     } finally {
       setLoading(false);
     }
@@ -36,6 +42,19 @@ const ClientList: React.FC = () => {
       client.contactInfo.phone.includes(term)
     );
   }, [clients, searchTerm]);
+
+  // Calculate project statistics for a client
+  const getClientProjectStats = (clientId: string) => {
+    const clientProjects = projects.filter(project => project.clientId === clientId);
+    const activeProjects = clientProjects.filter(project => project.status === 'active');
+    const inactiveProjects = clientProjects.filter(project => project.status !== 'active');
+
+    return {
+      total: clientProjects.length,
+      active: activeProjects.length,
+      inactive: inactiveProjects.length
+    };
+  };
 
   const handleCreateClient = () => {
     setEditingClient(null);
@@ -100,26 +119,41 @@ const ClientList: React.FC = () => {
               <th>Email</th>
               <th>Teléfono</th>
               <th>Dirección</th>
-              <th>Proyectos Activos</th>
+              <th>Proyectos</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {filteredClients.map(client => (
-              <tr key={client.id}>
-                <td className="client-name">{client.name}</td>
-                <td>{client.ruc}</td>
-                <td>{client.contactInfo.email}</td>
-                <td>{client.contactInfo.phone}</td>
-                <td className="client-address">{client.contactInfo.address}</td>
-                <td>{client.projects.length} proyectos</td>
-                <td>
-                  <button onClick={() => handleEditClient(client)} className="btn btn-secondary">
-                    Ver/Editar
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filteredClients.map(client => {
+              const projectStats = getClientProjectStats(client.id!);
+              return (
+                <tr key={client.id}>
+                  <td className="client-name">{client.name}</td>
+                  <td>{client.ruc}</td>
+                  <td>{client.contactInfo.email}</td>
+                  <td>{client.contactInfo.phone}</td>
+                  <td className="client-address">{client.contactInfo.address}</td>
+                  <td>
+                    <div className="project-stats-cell">
+                      <div className="project-stat">
+                        <span className="active-projects">{projectStats.active} activos</span>
+                      </div>
+                      <div className="project-stat">
+                        <span className="inactive-projects">{projectStats.inactive} inactivos</span>
+                      </div>
+                      <div className="project-total">
+                        <small>Total: {projectStats.total}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <button onClick={() => handleEditClient(client)} className="btn btn-secondary">
+                      Ver/Editar
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -136,12 +170,16 @@ const ClientList: React.FC = () => {
           <p>Total de Clientes</p>
         </div>
         <div className="stat-card">
-          <h3>{clients.reduce((sum, client) => sum + client.projects.length, 0)}</h3>
-          <p>Proyectos Totales</p>
+          <h3>{projects.filter(p => p.status === 'active').length}</h3>
+          <p>Proyectos Activos</p>
         </div>
         <div className="stat-card">
-          <h3>{clients.filter(client => client.projects.length > 0).length}</h3>
-          <p>Clientes Activos</p>
+          <h3>{projects.filter(p => p.status !== 'active').length}</h3>
+          <p>Proyectos Inactivos</p>
+        </div>
+        <div className="stat-card">
+          <h3>{projects.length}</h3>
+          <p>Proyectos Totales</p>
         </div>
       </div>
 

@@ -1501,6 +1501,36 @@ main {
   white-space: nowrap;
 }
 
+/* Project stats in client table */
+.project-stats-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.project-stat {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.active-projects {
+  color: #27ae60;
+}
+
+.inactive-projects {
+  color: #7f8c8d;
+}
+
+.project-total {
+  font-size: 12px;
+  color: #6c757d;
+  font-weight: 600;
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top: 1px solid #eee;
+}
+
 /* Projects count in employee table */
 .projects-count {
   font-weight: 600;
