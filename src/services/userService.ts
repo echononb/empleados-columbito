@@ -82,6 +82,12 @@ export class UserService {
   // Get all user profiles (admin only)
   static async getAllUserProfiles(): Promise<UserProfile[]> {
     try {
+      // Check if Firestore is available
+      if (!db) {
+        console.warn('Firestore not configured, returning empty user list');
+        return [];
+      }
+
       const q = query(
         collection(db, this.COLLECTION_NAME),
         orderBy('createdAt', 'desc')
@@ -97,13 +103,19 @@ export class UserService {
       return profiles;
     } catch (error) {
       console.error('Error getting all user profiles:', error);
-      throw error;
+      // Return empty array instead of throwing to allow the app to work in demo mode
+      return [];
     }
   }
 
   // Create new user with profile
   static async createUser(userData: CreateUserData, createdBy?: string): Promise<UserProfile> {
     try {
+      // Check if Firebase Auth is available
+      if (!auth) {
+        throw new Error('Firebase Auth no está configurado. Configure las variables de entorno REACT_APP_FIREBASE_* para habilitar la creación de usuarios.');
+      }
+
       // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -132,15 +144,33 @@ export class UserService {
         createdBy
       };
 
-      await setDoc(doc(db, this.COLLECTION_NAME, user.uid), userProfile);
+      if (db) {
+        await setDoc(doc(db, this.COLLECTION_NAME, user.uid), userProfile);
+      }
 
       // Sign out the newly created user (admin stays logged in)
       await firebaseSignOut(auth);
 
       return userProfile;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating user:', error);
-      throw error;
+
+      // Provide more specific error messages
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('Este email ya está registrado en el sistema.');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('La contraseña es muy débil. Debe tener al menos 6 caracteres.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('El email proporcionado no es válido.');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        throw new Error('La creación de usuarios no está habilitada. Contacte al administrador del sistema.');
+      } else if (error.code === 'permission-denied') {
+        throw new Error('No tiene permisos para crear usuarios. Solo administradores pueden crear nuevos usuarios.');
+      } else if (!auth) {
+        throw new Error('Firebase Auth no está configurado. Configure las variables de entorno REACT_APP_FIREBASE_* para habilitar la creación de usuarios.');
+      } else {
+        throw new Error(`Error al crear usuario: ${error.message || 'Error desconocido'}`);
+      }
     }
   }
 

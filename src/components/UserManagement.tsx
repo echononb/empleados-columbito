@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { DatabaseCleaner } from '../utils/databaseCleaner';
 import { UserService, UserProfile } from '../services/userService';
+import { auth } from '../firebase';
 
 interface User extends UserProfile {}
 
@@ -170,9 +171,37 @@ const UserManagement: React.FC = () => {
 
       alert('Usuario creado exitosamente.');
       setShowCreateUserModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating user:', error);
-      alert('Error al crear el usuario.');
+
+      // Show specific error messages
+      let errorMessage = 'Error al crear el usuario.';
+
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.code) {
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = 'Este email ya está registrado en el sistema.';
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'La contraseña es muy débil. Debe tener al menos 6 caracteres.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'El email proporcionado no es válido.';
+            break;
+          case 'auth/operation-not-allowed':
+            errorMessage = 'La creación de usuarios no está habilitada en Firebase. Configure las reglas de autenticación en Firebase Console.';
+            break;
+          case 'permission-denied':
+            errorMessage = 'No tiene permisos para crear usuarios. Solo administradores pueden crear nuevos usuarios.';
+            break;
+          default:
+            errorMessage = `Error de autenticación: ${error.code}`;
+        }
+      }
+
+      alert(errorMessage);
     } finally {
       setSaving(null);
     }
@@ -205,10 +234,29 @@ const UserManagement: React.FC = () => {
             Gestiona los roles y permisos de los usuarios del sistema.
             Los administradores tienen acceso completo a reportes y configuración.
           </p>
+    
+          {!auth && (
+            <div className="firebase-warning">
+              <div className="warning-icon">⚠️</div>
+              <div className="warning-content">
+                <h4>Firebase no configurado</h4>
+                <p>
+                  La gestión de usuarios requiere configuración de Firebase.
+                  Configure las variables de entorno <code>REACT_APP_FIREBASE_*</code> para habilitar
+                  la creación y gestión de usuarios.
+                </p>
+                <p>
+                  Actualmente solo puede gestionar usuarios existentes que ya se hayan registrado.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
         <button
           onClick={() => setShowCreateUserModal(true)}
           className="btn btn-primary"
+          disabled={!auth}
+          title={!auth ? 'Firebase no configurado' : 'Crear nuevo usuario'}
         >
           ➕ Crear Usuario
         </button>

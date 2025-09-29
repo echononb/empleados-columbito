@@ -1564,6 +1564,45 @@ main {
   gap: 20px;
 }
 
+/* Firebase Warning */
+.firebase-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  color: #856404;
+}
+
+.firebase-warning .warning-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.firebase-warning .warning-content h4 {
+  margin: 0 0 8px 0;
+  color: #856404;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.firebase-warning .warning-content p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.firebase-warning code {
+  background: #f8f9fa;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
 .user-management-header h2 {
   margin: 0 0 10px 0;
 }
