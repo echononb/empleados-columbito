@@ -18,11 +18,11 @@ const EmployeeList: React.FC = () => {
   const [statusChangeEmployee, setStatusChangeEmployee] = useState<Employee | null>(null);
 
   // Check if user can edit employees
-  // TEMPORARY FIX: Force canEdit for digitador role for debugging
-  const canEdit = (userRole === 'digitador' || userRole === 'administrador') ||
-                  (userRole && userRole.toLowerCase().trim() === 'digitador');
-  const canManage = userRole === 'administrador' ||
-                    (userRole && userRole.toLowerCase().trim() === 'administrador');
+  const canEdit = userRole === 'digitador' || userRole === 'administrador';
+
+  // Check if user can manage employee status (activate/deactivate)
+  // Both digitador and administrador can manage employee status
+  const canManage = userRole === 'digitador' || userRole === 'administrador';
 
   // Debug logging - detailed role checking
   console.log('=== EMPLOYEE LIST ROLE DEBUG ===');
@@ -34,7 +34,7 @@ const EmployeeList: React.FC = () => {
   console.log('userRole === null:', userRole === null);
   console.log('userRole === undefined:', userRole === undefined);
   console.log('canEdit result:', canEdit);
-  console.log('canManage result:', canManage);
+  console.log('canManage result (activate/deactivate):', canManage);
 
   // Additional checks
   if (userRole) {
@@ -165,7 +165,7 @@ const EmployeeList: React.FC = () => {
         {!canEdit && userRole && (
           <div className="permission-denied">
             <small style={{ color: '#6c757d' }}>
-              Solo usuarios con rol "Digitador" o "Administrador" pueden agregar empleados.
+              Solo usuarios con rol "Digitador" o "Administrador" pueden gestionar empleados.
               Si tu rol fue actualizado recientemente, haz clic en "Actualizar Rol" o cierra sesión y vuelve a iniciar sesión.
             </small>
           </div>
@@ -193,7 +193,7 @@ const EmployeeList: React.FC = () => {
             Mostrar empleados inactivos
           </label>
           <small className="help-text" style={{ display: 'block', marginTop: '4px', color: '#6c757d' }}>
-            💡 Usa "Desactivar" para quitar acceso al sistema sin perder datos
+            💡 Usa "Desactivar/Reactivar" para gestionar el acceso de empleados al sistema sin perder datos
           </small>
         </div>
       </div>
