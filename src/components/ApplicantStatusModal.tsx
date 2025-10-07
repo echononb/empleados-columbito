@@ -65,25 +65,27 @@ const ApplicantStatusModal: React.FC<ApplicantStatusModalProps> = ({
   const handleConvertToEmployee = async () => {
     if (!applicant.id) return;
 
-    if (!confirm('¿Está seguro de convertir este postulante en empleado? Esta acción creará un nuevo registro de empleado.')) {
+    if (!window.confirm('¿Está seguro de convertir este postulante en empleado? Esta acción creará un nuevo registro de empleado.')) {
       return;
     }
 
     setLoading(true);
 
     try {
-      const employeeId = await ApplicantService.convertToEmployee(applicant.id, user?.uid || '');
+      const currentUser = localStorage.getItem('currentUser');
+      const userId = currentUser ? JSON.parse(currentUser).uid : 'system';
+      const employeeId = await ApplicantService.convertToEmployee(applicant.id, userId);
 
       // Actualizar el estado del postulante
       const updatedApplicant = {
         ...applicant,
         status: 'contratado' as ApplicantStatus,
         fechaUltimaActualizacion: new Date().toISOString(),
-        actualizadoPor: user?.uid,
+        actualizadoPor: userId,
         convertidoAEmpleado: {
           empleadoId: employeeId || 'pending',
           fechaConversion: new Date().toISOString(),
-          convertidoPor: user?.uid || ''
+          convertidoPor: userId
         }
       };
 
@@ -96,10 +98,10 @@ const ApplicantStatusModal: React.FC<ApplicantStatusModalProps> = ({
         convertedBy: user?.uid
       });
 
-      alert('Postulante convertido a empleado exitosamente. Se ha creado un nuevo registro de empleado.');
+      window.alert('Postulante convertido a empleado exitosamente. Se ha creado un nuevo registro de empleado.');
     } catch (error) {
       logger.error('Error converting applicant to employee', error);
-      alert('Error al convertir el postulante en empleado. Inténtalo de nuevo.');
+      window.alert('Error al convertir el postulante en empleado. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
