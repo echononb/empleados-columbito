@@ -45,7 +45,7 @@ const ApplicantForm: React.FC<ApplicantFormProps> = ({
     puestoInteres: applicant?.puestoInteres || '',
     experienciaPrevia: applicant?.experienciaPrevia || '',
     salarioEsperado: applicant?.salarioEsperado || '',
-    disponibilidadInmediata: applicant?.disponibilidadInmediata || true,
+    disponibilidadInmediata: applicant?.disponibilidadInmediata ?? true,
     fechaDisponibilidad: applicant?.fechaDisponibilidad || '',
 
     // Información Académica
