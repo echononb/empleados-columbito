@@ -53,13 +53,13 @@ const informacionAcademicaSchema = z.object({
 });
 
 const conyugeSchema = z.object({
-  apellidosNombres: z.string().max(200, 'Máximo 200 caracteres').optional().or(z.literal('')),
-  dni: z.string().regex(dniRegex, 'DNI debe tener 8 dígitos').optional().or(z.literal('')),
+  apellidosNombres: z.string().max(200, 'Máximo 200 caracteres').optional(),
+  dni: z.string().regex(dniRegex, 'DNI debe tener 8 dígitos').optional(),
   fechaNacimiento: z.string()
     .refine(validateDateString, 'Fecha de nacimiento no válida')
-    .optional().or(z.literal('')),
-  telefono: z.string().regex(phoneRegex, 'Teléfono debe tener 7-9 dígitos').optional().or(z.literal('')),
-  documentoVinculo: z.string().max(100, 'Máximo 100 caracteres').optional().or(z.literal(''))
+    .optional(),
+  telefono: z.string().regex(phoneRegex, 'Teléfono debe tener 7-9 dígitos').optional(),
+  documentoVinculo: z.string().max(100, 'Máximo 100 caracteres').optional()
 });
 
 const hijoSchema = z.object({
