@@ -137,33 +137,41 @@ const EmployeeList: React.FC = () => {
   }
 
   return (
-    <div className="employee-list">
+    <div className="employee-list" role="main" aria-label="Lista de empleados">
       <div className="employee-list-header">
         <div>
-          <h2>Lista de Empleados</h2>
-          <div className="user-role-info">
-            <small>Rol actual: <strong>{userRole || 'Cargando...'}</strong></small>
-            {canEdit && <small style={{ color: '#28a745', marginLeft: '10px' }}>✅ Tiene permisos para editar</small>}
-            {!canEdit && userRole && <small style={{ color: '#dc3545', marginLeft: '10px' }}>❌ No tiene permisos para editar</small>}
+          <h2 id="employee-list-title">Lista de Empleados</h2>
+          <div className="user-role-info" role="status" aria-live="polite" aria-label="Información del usuario actual">
+            <small>Rol actual: <strong aria-label={`Rol de usuario: ${userRole || 'Cargando'}`}>{userRole || 'Cargando...'}</strong></small>
+            {canEdit && <small style={{ color: '#28a745', marginLeft: '10px' }} aria-label="Usuario tiene permisos para editar empleados">✅ Tiene permisos para editar</small>}
+            {!canEdit && userRole && <small style={{ color: '#dc3545', marginLeft: '10px' }} aria-label="Usuario no tiene permisos para editar empleados">❌ No tiene permisos para editar</small>}
             {userRole && (
               <button
                 onClick={refreshUserRole}
                 className="btn btn-secondary btn-small"
                 style={{ marginLeft: '10px', fontSize: '11px', padding: '2px 6px' }}
                 title="Actualizar rol desde el servidor"
+                aria-describedby="refresh-role-help"
               >
                 🔄 Actualizar Rol
               </button>
             )}
+            <div id="refresh-role-help" className="sr-only">
+              Haz clic para actualizar tu rol desde el servidor si fue modificado recientemente
+            </div>
           </div>
         </div>
         {canEdit && (
-          <Link to="/employees/new" className="btn btn-primary">
+          <Link
+            to="/employees/new"
+            className="btn btn-primary"
+            aria-label="Agregar nuevo empleado"
+          >
             Agregar Empleado
           </Link>
         )}
         {!canEdit && userRole && (
-          <div className="permission-denied">
+          <div className="permission-denied" role="alert" aria-live="assertive">
             <small style={{ color: '#6c757d' }}>
               Solo usuarios con rol "Digitador" o "Administrador" pueden gestionar empleados.
               Si tu rol fue actualizado recientemente, haz clic en "Actualizar Rol" o cierra sesión y vuelve a iniciar sesión.
@@ -172,27 +180,43 @@ const EmployeeList: React.FC = () => {
         )}
       </div>
 
-      <div className="filters-container">
+      <div className="filters-container" role="search" aria-label="Filtros de búsqueda de empleados">
         <div className="search-container">
+          <label htmlFor="employee-search" className="sr-only">
+            Buscar empleados por nombre, DNI o código
+          </label>
           <input
+            id="employee-search"
             type="text"
             placeholder="Buscar por nombre, DNI o código..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
+            aria-describedby="search-help"
+            autoComplete="off"
           />
+          <div id="search-help" className="sr-only">
+            Busca empleados escribiendo nombre, apellido, DNI o código de empleado
+          </div>
         </div>
 
         <div className="status-filter">
-          <label className="checkbox-label">
+          <label className="checkbox-label" htmlFor="show-inactive-filter">
             <input
+              id="show-inactive-filter"
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
+              aria-describedby="inactive-help"
             />
             Mostrar empleados inactivos
           </label>
-          <small className="help-text" style={{ display: 'block', marginTop: '4px', color: '#6c757d' }}>
+          <small
+            id="inactive-help"
+            className="help-text"
+            style={{ display: 'block', marginTop: '4px', color: '#6c757d' }}
+            role="tooltip"
+          >
             💡 Usa "Desactivar/Reactivar" para gestionar el acceso de empleados al sistema sin perder datos
           </small>
         </div>
@@ -204,56 +228,84 @@ const EmployeeList: React.FC = () => {
         </div>
       )}
 
-      <div className="employee-table-container">
-        <table className="employee-table">
+      <div className="employee-table-container" role="region" aria-label="Tabla de empleados" aria-describedby="employee-list-title">
+        <table className="employee-table" role="table" aria-label="Lista de empleados" aria-rowcount={filteredEmployees.length + 1}>
           <thead>
-            <tr>
-              <th>Foto</th>
-              <th>Código</th>
-              <th>DNI</th>
-              <th>Apellidos y Nombres</th>
-              <th>Puesto</th>
-              <th>Fecha Ingreso</th>
-              <th>Edad</th>
-              <th>Estado</th>
-              <th>Proyectos</th>
-              <th>Acciones</th>
+            <tr role="row">
+              <th role="columnheader" aria-label="Foto del empleado">Foto</th>
+              <th role="columnheader" aria-label="Código de empleado">Código</th>
+              <th role="columnheader" aria-label="Número de DNI">DNI</th>
+              <th role="columnheader" aria-label="Apellidos y nombres del empleado">Apellidos y Nombres</th>
+              <th role="columnheader" aria-label="Puesto de trabajo">Puesto</th>
+              <th role="columnheader" aria-label="Fecha de ingreso">Fecha Ingreso</th>
+              <th role="columnheader" aria-label="Edad del empleado">Edad</th>
+              <th role="columnheader" aria-label="Estado del empleado">Estado</th>
+              <th role="columnheader" aria-label="Número de proyectos asignados">Proyectos</th>
+              <th role="columnheader" aria-label="Acciones disponibles">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {filteredEmployees.map(employee => (
-              <tr key={employee.id}>
-                <td>
+            {filteredEmployees.map((employee, index) => (
+              <tr key={employee.id} role="row" aria-rowindex={index + 2}>
+                <td role="cell">
                   {employee.fotoUrl ? (
                     <LazyImage
                       src={employee.fotoUrl}
-                      alt={`Foto de ${employee.nombres}`}
+                      alt={`Foto de ${employee.nombres} ${employee.apellidoPaterno}`}
                       className="employee-photo-thumbnail"
                       placeholder="👤"
                     />
                   ) : (
-                    <div className="employee-photo-placeholder">📷</div>
+                    <div
+                      className="employee-photo-placeholder"
+                      aria-label="Sin foto disponible"
+                    >
+                      📷
+                    </div>
                   )}
                 </td>
-                <td>{employee.employeeCode}</td>
-                <td>{employee.dni}</td>
-                <td>{`${employee.apellidoPaterno} ${employee.apellidoMaterno}, ${employee.nombres}`}</td>
-                <td>{employee.puesto}</td>
-                <td>{formatDate(employee.fechaIngreso)}</td>
-                <td>{EmployeeService.calculateAge(employee.fechaNacimiento)}</td>
-                <td>
-                  <span className={`status-badge ${employee.isActive ? 'status-active' : 'status-inactive'}`}>
+                <td role="cell" aria-label={`Código: ${employee.employeeCode}`}>
+                  {employee.employeeCode}
+                </td>
+                <td role="cell" aria-label={`DNI: ${employee.dni}`}>
+                  {employee.dni}
+                </td>
+                <td role="cell" aria-label={`Nombre: ${employee.apellidoPaterno} ${employee.apellidoMaterno}, ${employee.nombres}`}>
+                  {`${employee.apellidoPaterno} ${employee.apellidoMaterno}, ${employee.nombres}`}
+                </td>
+                <td role="cell" aria-label={`Puesto: ${employee.puesto}`}>
+                  {employee.puesto}
+                </td>
+                <td role="cell" aria-label={`Fecha de ingreso: ${formatDate(employee.fechaIngreso)}`}>
+                  {formatDate(employee.fechaIngreso)}
+                </td>
+                <td role="cell" aria-label={`Edad: ${EmployeeService.calculateAge(employee.fechaNacimiento)} años`}>
+                  {EmployeeService.calculateAge(employee.fechaNacimiento)}
+                </td>
+                <td role="cell">
+                  <span
+                    className={`status-badge ${employee.isActive ? 'status-active' : 'status-inactive'}`}
+                    aria-label={`Estado: ${employee.isActive ? 'Empleado activo' : 'Empleado inactivo'}`}
+                    role="status"
+                  >
                     {employee.isActive ? 'Activo' : 'Inactivo'}
                   </span>
                 </td>
-                <td>
-                  <span className="projects-count">
+                <td role="cell">
+                  <span
+                    className="projects-count"
+                    aria-label={`${employee.assignedProjects?.length || 0} proyecto${employee.assignedProjects?.length !== 1 ? 's' : ''} asignado${employee.assignedProjects?.length !== 1 ? 's' : ''}`}
+                  >
                     {employee.assignedProjects?.length || 0} proyecto{employee.assignedProjects?.length !== 1 ? 's' : ''}
                   </span>
                 </td>
-                <td className="actions-cell">
-                  <div className="action-buttons">
-                    <Link to={`/employees/${employee.id}`} className="btn btn-secondary btn-small">
+                <td role="cell" className="actions-cell">
+                  <div className="action-buttons" role="group" aria-label="Acciones del empleado">
+                    <Link
+                      to={`/employees/${employee.id}`}
+                      className="btn btn-secondary btn-small"
+                      aria-label={`${canEdit ? 'Ver y editar' : 'Ver detalles de'} ${employee.nombres} ${employee.apellidoPaterno}`}
+                    >
                       {canEdit ? 'Ver/Editar' : 'Ver'}
                     </Link>
                     {canManage && (
@@ -262,10 +314,18 @@ const EmployeeList: React.FC = () => {
                         disabled={togglingId === employee.id}
                         className={`btn ${employee.isActive ? 'btn-warning' : 'btn-success'} btn-small`}
                         title={employee.isActive ? 'Desactivar empleado (no podrá acceder al sistema)' : 'Activar empleado (podrá acceder al sistema)'}
+                        aria-label={`${employee.isActive ? 'Desactivar' : 'Activar'} empleado ${employee.nombres} ${employee.apellidoPaterno}`}
+                        aria-describedby={`status-help-${employee.id}`}
                       >
                         {togglingId === employee.id ? '⏳ Cambiando...' : (employee.isActive ? '🚫 Desactivar' : '✅ Activar')}
                       </button>
                     )}
+                    <div id={`status-help-${employee.id}`} className="sr-only">
+                      {employee.isActive
+                        ? 'Desactivar empleado lo removerá del acceso al sistema pero mantendrá sus datos'
+                        : 'Activar empleado le permitirá acceder al sistema nuevamente'
+                      }
+                    </div>
                   </div>
                 </td>
               </tr>

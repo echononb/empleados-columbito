@@ -4,29 +4,51 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
 
-// Firebase configuration with fallback values
-const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "demo-api-key",
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "demo-project.firebaseapp.com",
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "demo-project",
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "demo-project.appspot.com",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:123456789:web:abcdef123456"
+// Firebase configuration - Required environment variables
+const getRequiredEnvVar = (name: string): string => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}. Please check your .env file.`);
+  }
+  return value;
 };
 
-// Check if we have valid Firebase config
-const hasValidConfig = process.env.REACT_APP_FIREBASE_API_KEY &&
-                      process.env.REACT_APP_FIREBASE_API_KEY !== "demo-api-key";
+const firebaseConfig = {
+  apiKey: getRequiredEnvVar('REACT_APP_FIREBASE_API_KEY'),
+  authDomain: getRequiredEnvVar('REACT_APP_FIREBASE_AUTH_DOMAIN'),
+  projectId: getRequiredEnvVar('REACT_APP_FIREBASE_PROJECT_ID'),
+  storageBucket: getRequiredEnvVar('REACT_APP_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getRequiredEnvVar('REACT_APP_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: getRequiredEnvVar('REACT_APP_FIREBASE_APP_ID')
+};
 
-console.log('🔥 Firebase Configuration Debug:');
-console.log('hasValidConfig:', hasValidConfig);
-console.log('API_KEY:', process.env.REACT_APP_FIREBASE_API_KEY ? '***configured***' : 'NOT SET');
-console.log('AUTH_DOMAIN:', process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || 'NOT SET');
-console.log('PROJECT_ID:', process.env.REACT_APP_FIREBASE_PROJECT_ID || 'NOT SET');
-console.log('STORAGE_BUCKET:', process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || 'NOT SET');
-console.log('MESSAGING_SENDER_ID:', process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || 'NOT SET');
-console.log('APP_ID:', process.env.REACT_APP_FIREBASE_APP_ID || 'NOT SET');
-console.log('Full firebaseConfig:', firebaseConfig);
+// Validate Firebase configuration
+const hasValidConfig = (() => {
+  try {
+    // Ensure all required variables are present and not demo values
+    const requiredVars = [
+      'REACT_APP_FIREBASE_API_KEY',
+      'REACT_APP_FIREBASE_AUTH_DOMAIN',
+      'REACT_APP_FIREBASE_PROJECT_ID',
+      'REACT_APP_FIREBASE_STORAGE_BUCKET',
+      'REACT_APP_FIREBASE_MESSAGING_SENDER_ID',
+      'REACT_APP_FIREBASE_APP_ID'
+    ];
+
+    for (const varName of requiredVars) {
+      const value = process.env[varName];
+      if (!value || value.includes('demo') || value.length < 10) {
+        console.error(`❌ Invalid Firebase configuration: ${varName} appears to be a demo/placeholder value`);
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Firebase configuration validation failed:', error);
+    return false;
+  }
+})();
 
 // Initialize Firebase only if we have valid config
 let app: any = null;
@@ -43,20 +65,14 @@ if (hasValidConfig) {
       hasApiKey: !!firebaseConfig.apiKey,
       hasAppId: !!firebaseConfig.appId
     });
+
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
     functions = getFunctions(app);
-    console.log('✅ Firebase initialized successfully');
 
-    // Test if the project exists by trying to get auth config
-    console.log('🔍 Testing Firebase connection...');
-    // This will help us know if the credentials are valid
-    setTimeout(() => {
-      console.log('Firebase Auth currentUser:', auth.currentUser);
-      console.log('Firebase project accessible');
-    }, 1000);
+    console.log('✅ Firebase initialized successfully');
 
   } catch (error) {
     console.error('❌ Firebase initialization failed:', error);
@@ -64,9 +80,12 @@ if (hasValidConfig) {
     console.error('1. Invalid API key or project ID');
     console.error('2. Project does not exist');
     console.error('3. Wrong credentials copied from Firebase Console');
+    throw new Error('Firebase initialization failed. Please check your configuration.');
   }
 } else {
-  console.warn('⚠️ Firebase not configured. Using demo mode. Set REACT_APP_FIREBASE_* environment variables for full functionality.');
+  console.error('❌ Firebase configuration is invalid or missing required environment variables.');
+  console.error('Please check your .env file and ensure all REACT_APP_FIREBASE_* variables are set correctly.');
+  throw new Error('Firebase configuration is required but not properly configured.');
 }
 
 export { auth, db, storage, functions };

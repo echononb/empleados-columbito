@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../firebase';
 import { UserService } from '../services/userService';
+import logger, { logAuthEvent, logError } from '../utils/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -49,40 +50,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(user);
 
       if (user) {
-        try {
-          console.log('=== AUTH CONTEXT ROLE LOADING ===');
-          console.log('User email:', user.email);
-          console.log('User UID:', user.uid);
+         try {
+           logger.debug('Loading user role and profile', { email: user.email, uid: user.uid });
 
-          // Check for pending roles first
-          console.log('Checking for pending roles...');
-          const pendingRole = await UserService.applyPendingRole(user.email!, user.uid);
-          console.log('Pending role result:', pendingRole);
+           // Check for pending roles first
+           const pendingRole = await UserService.applyPendingRole(user.email!, user.uid);
+           logger.debug('Pending role applied', { pendingRole });
 
-          // Initialize or get user profile from Firestore
-          console.log('Getting/creating user profile...');
-          const userProfile = await UserService.initializeUserProfile(user);
-          console.log('User profile:', userProfile);
+           // Initialize or get user profile from Firestore
+           const userProfile = await UserService.initializeUserProfile(user);
+           logger.debug('User profile loaded', { role: userProfile.role });
 
-          // Use pending role if applied, otherwise use profile role
-          const finalRole = pendingRole || userProfile.role;
-          console.log('Final role:', finalRole);
-          setUserRole(finalRole);
+           // Use pending role if applied, otherwise use profile role
+           const finalRole = pendingRole || userProfile.role;
+           setUserRole(finalRole);
 
-          // Update profile if pending role was applied
-          if (pendingRole && pendingRole !== userProfile.role) {
-            console.log('Updating profile with pending role...');
-            await UserService.updateUserProfile(user.uid, { role: pendingRole });
-          }
-          console.log('=== AUTH CONTEXT ROLE LOADING COMPLETE ===');
+           // Update profile if pending role was applied
+           if (pendingRole && pendingRole !== userProfile.role) {
+             await UserService.updateUserProfile(user.uid, { role: pendingRole });
+             logger.info('User profile updated with pending role', { uid: user.uid, newRole: pendingRole });
+           }
 
-        } catch (error) {
-          console.error('Error loading user profile:', error);
-          // Fallback to localStorage or default role
-          const storedRole = localStorage.getItem(`userRole_${user.uid}`);
-          const defaultRole = user.email === 'admin@columbito.com' ? 'administrador' : 'consulta';
-          setUserRole(storedRole as 'consulta' | 'digitador' | 'administrador' || defaultRole);
-        }
+           logAuthEvent('User profile loaded successfully', { role: finalRole });
+
+         } catch (error) {
+           logError(error as Error, 'AuthContext - loading user profile');
+           // Fallback to localStorage or default role
+           const storedRole = localStorage.getItem(`userRole_${user.uid}`);
+           const defaultRole = user.email === 'admin@columbito.com' ? 'administrador' : 'consulta';
+           setUserRole(storedRole as 'consulta' | 'digitador' | 'administrador' || defaultRole);
+         }
       } else {
         setUserRole(null);
       }
@@ -94,27 +91,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      logAuthEvent('User login successful', { email });
+    } catch (error) {
+      logError(error as Error, 'AuthContext - login');
+      throw error;
+    }
   };
 
   const register = async (email: string, password: string) => {
-    if (!auth) {
-      throw new Error('Firebase Auth no está configurado. Verifica la configuración.');
+    try {
+      if (!auth) {
+        throw new Error('Firebase Auth no está configurado. Verifica la configuración.');
+      }
+      await createUserWithEmailAndPassword(auth, email, password);
+      logAuthEvent('User registration successful', { email });
+    } catch (error) {
+      logError(error as Error, 'AuthContext - register');
+      throw error;
     }
-    await createUserWithEmailAndPassword(auth, email, password);
   };
 
   const loginWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      logAuthEvent('Google login successful');
+    } catch (error) {
+      logError(error as Error, 'AuthContext - loginWithGoogle');
+      throw error;
+    }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+      logAuthEvent('User logout successful');
+    } catch (error) {
+      logError(error as Error, 'AuthContext - logout');
+      throw error;
+    }
   };
 
   const resetPassword = async (email: string) => {
-    await sendPasswordResetEmail(auth, email);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      logger.info('Password reset email sent', { email });
+    } catch (error) {
+      logError(error as Error, 'AuthContext - resetPassword');
+      throw error;
+    }
   };
 
   const updateUserRole = async (role: 'consulta' | 'digitador' | 'administrador') => {
@@ -123,11 +150,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Update user role using UserService
         await UserService.updateUserRole(user.uid, role);
         setUserRole(role);
+        logAuthEvent('User role updated', { newRole: role });
       } catch (error) {
-        console.error('Error updating user role:', error);
+        logError(error as Error, 'AuthContext - updateUserRole');
         // Fallback to localStorage
         localStorage.setItem(`userRole_${user.uid}`, role);
         setUserRole(role);
+        logger.warn('User role updated in localStorage due to service error', { role });
       }
     }
   };
@@ -150,8 +179,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           await UserService.updateUserProfile(user.uid, { role: pendingRole });
         }
 
+        logger.debug('User role refreshed successfully', { finalRole });
+
       } catch (error) {
-        console.error('Error refreshing user role:', error);
+        logError(error as Error, 'AuthContext - refreshUserRole');
         // Fallback to localStorage or default role
         const storedRole = localStorage.getItem(`userRole_${user.uid}`);
         const defaultRole = user.email === 'admin@columbito.com' ? 'administrador' : 'consulta';
