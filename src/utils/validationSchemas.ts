@@ -138,8 +138,7 @@ export const employeeSchema = z.object({
 
   telefonoFijo: z.string()
     .regex(phoneRegex, 'Teléfono fijo debe tener 7-9 dígitos')
-    .optional()
-    .or(z.literal('')),
+    .optional(),
 
   estadoCivil: z.enum(['Soltero', 'Casado', 'Divorciado', 'Viudo'], {
     message: 'Estado civil no válido'
@@ -264,134 +263,7 @@ export const validateEmployeeSearch = (data: unknown) => {
   return employeeSearchSchema.safeParse(data);
 };
 
-// Esquemas de validación para postulantes
-const lugarNacimientoApplicantSchema = z.object({
-  departamento: z.string().min(1, 'Departamento es requerido').max(100),
-  provincia: z.string().min(1, 'Provincia es requerida').max(100),
-  distrito: z.string().min(1, 'Distrito es requerido').max(100)
-});
-
-const estudioComplementarioSchema = z.object({
-  nombre: z.string().min(1, 'Nombre del estudio es requerido').max(200),
-  institucion: z.string().min(1, 'Institución es requerida').max(200),
-  anoEgreso: z.number()
-    .int('Año debe ser un número entero')
-    .min(1950, 'Año debe ser posterior a 1950')
-    .max(new Date().getFullYear(), 'Año no puede ser en el futuro')
-});
-
-export const applicantSchema = z.object({
-  // Información Personal
-  dni: z.string()
-    .regex(/^[0-9]{8}$/, 'DNI debe tener exactamente 8 dígitos'),
-
-  apellidoPaterno: z.string()
-    .min(1, 'Apellido paterno es requerido')
-    .max(100, 'Apellido paterno máximo 100 caracteres')
-    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'Apellido paterno solo puede contener letras'),
-
-  apellidoMaterno: z.string()
-    .min(1, 'Apellido materno es requerido')
-    .max(100, 'Apellido materno máximo 100 caracteres')
-    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'Apellido materno solo puede contener letras'),
-
-  nombres: z.string()
-    .min(1, 'Nombres son requeridos')
-    .max(150, 'Nombres máximo 150 caracteres')
-    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'Nombres solo pueden contener letras'),
-
-  fechaNacimiento: z.string()
-    .refine(validateDateString, 'Fecha de nacimiento no válida')
-    .refine((date) => {
-      const birthDate = new Date(date);
-      const today = new Date();
-      const age = today.getFullYear() - birthDate.getFullYear();
-      return age >= 18 && age <= 65;
-    }, 'Edad debe estar entre 18 y 65 años'),
-
-  lugarNacimiento: lugarNacimientoApplicantSchema,
-
-  sexo: z.enum(['Masculino', 'Femenino'], {
-    message: 'Sexo debe ser Masculino o Femenino'
-  }),
-
-  estadoCivil: z.enum(['Soltero', 'Casado', 'Divorciado', 'Viudo'], {
-    message: 'Estado civil no válido'
-  }),
-
-  // Información de Contacto
-  direccionActual: z.string()
-    .min(1, 'Dirección actual es requerida')
-    .max(300, 'Dirección máximo 300 caracteres'),
-
-  referenciaDireccion: z.string()
-    .min(1, 'Referencia de dirección es requerida')
-    .max(200, 'Referencia máximo 200 caracteres'),
-
-  telefonoCelular: z.string()
-    .regex(phoneRegex, 'Teléfono celular debe tener 7-9 dígitos'),
-
-  telefonoFijo: z.string()
-    .regex(phoneRegex, 'Teléfono fijo debe tener 7-9 dígitos')
-    .optional()
-    .or(z.literal('')),
-
-  email: z.string()
-    .regex(emailRegex, 'Email no válido'),
-
-  // Información Laboral
-  puestoInteres: z.string()
-    .min(1, 'Puesto de interés es requerido')
-    .max(100, 'Puesto máximo 100 caracteres'),
-
-  experienciaPrevia: z.string()
-    .min(1, 'Experiencia previa es requerida')
-    .max(1000, 'Experiencia máximo 1000 caracteres'),
-
-  salarioEsperado: z.number()
-    .positive('Salario debe ser un número positivo')
-    .max(50000, 'Salario máximo 50,000')
-    .optional(),
-
-  disponibilidadInmediata: z.boolean(),
-
-  fechaDisponibilidad: z.string()
-    .refine(validateDateString, 'Fecha de disponibilidad no válida')
-    .optional(),
-
-  // Información Académica
-  gradoInstruccion: z.string()
-    .min(1, 'Grado de instrucción es requerido')
-    .max(100, 'Grado máximo 100 caracteres'),
-
-  nombreInstitucion: z.string()
-    .min(1, 'Nombre de institución es requerido')
-    .max(200, 'Institución máximo 200 caracteres'),
-
-  carreraProfesional: z.string()
-    .max(150, 'Carrera máximo 150 caracteres')
-    .optional(),
-
-  anoEgreso: z.number()
-    .int('Año de egreso debe ser un número entero')
-    .min(1950, 'Año debe ser posterior a 1950')
-    .max(new Date().getFullYear(), 'Año no puede ser en el futuro'),
-
-  estudiosComplementarios: z.array(estudioComplementarioSchema).optional().default([]),
-
-  // Información Adicional
-  fuentePostulacion: z.enum(['web', 'referido', 'feria_empleo', 'redes_sociales', 'otro'], {
-    message: 'Fuente de postulación no válida'
-  }),
-
-  referidoPor: z.string()
-    .max(200, 'Referido por máximo 200 caracteres')
-    .optional(),
-
-  observaciones: z.string()
-    .max(500, 'Observaciones máximo 500 caracteres')
-    .optional()
-});
+// Esquemas de validación para postulantes - Eliminado esquema duplicado
 
 // Schema simplificado para validación básica de postulantes
 export const applicantCreateSchema = z.object({
@@ -420,7 +292,7 @@ export const applicantCreateSchema = z.object({
 });
 
 // Schema para actualización de postulantes
-export const applicantUpdateSchema = applicantSchema.partial().extend({
+export const applicantUpdateSchema = applicantCreateSchema.partial().extend({
   status: z.enum(['pendiente', 'en_revision', 'aprobado', 'rechazado', 'contratado']).optional(),
   actualizadoPor: z.string().optional(),
   entrevistas: z.array(z.object({
