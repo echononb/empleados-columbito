@@ -289,28 +289,28 @@ export const applicantCreateSchema = z.object({
 
 // Schema para actualización de postulantes
 export const applicantUpdateSchema = applicantCreateSchema.partial().extend({
-  status: z.enum(['pendiente', 'en_revision', 'aprobado', 'rechazado', 'contratado']).optional(),
+  status: z.string().optional(),
   actualizadoPor: z.string().optional(),
   entrevistas: z.array(z.object({
     fecha: z.string(),
-    tipo: z.enum(['telefonica', 'presencial', 'virtual']),
+    tipo: z.string(),
     entrevistador: z.string(),
-    resultado: z.enum(['positivo', 'negativo', 'pendiente']),
+    resultado: z.string(),
     observaciones: z.string().optional()
   })).optional(),
   notificacionesEnviadas: z.array(z.object({
-    tipo: z.enum(['confirmacion', 'cita', 'resultado', 'recordatorio']),
+    tipo: z.string(),
     fecha: z.string(),
-    metodo: z.enum(['email', 'sms', 'telefono']),
-    estado: z.enum(['enviado', 'fallido', 'pendiente'])
+    metodo: z.string(),
+    estado: z.string()
   })).optional()
 });
 
 // Schema para filtros de búsqueda
 export const applicantFiltersSchema = z.object({
-  status: z.array(z.enum(['pendiente', 'en_revision', 'aprobado', 'rechazado', 'contratado'])).optional(),
+  status: z.array(z.string()).optional(),
   puestoInteres: z.string().optional(),
-  fuentePostulacion: z.array(z.enum(['web', 'referido', 'feria_empleo', 'redes_sociales', 'otro'])).optional(),
+  fuentePostulacion: z.array(z.string()).optional(),
   fechaDesde: z.string().optional(),
   fechaHasta: z.string().optional(),
   searchTerm: z.string().max(100).optional()
