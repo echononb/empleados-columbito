@@ -273,8 +273,8 @@ export const applicantCreateSchema = z.object({
     provincia: z.string().min(1),
     distrito: z.string().min(1)
   }),
-  sexo: z.enum(['Masculino', 'Femenino']),
-  estadoCivil: z.enum(['Soltero', 'Casado', 'Divorciado', 'Viudo']),
+  sexo: z.string(),
+  estadoCivil: z.string(),
   direccionActual: z.string().min(1, 'Dirección requerida'),
   referenciaDireccion: z.string().min(1, 'Referencia requerida'),
   telefonoCelular: z.string().regex(phoneRegex, 'Teléfono inválido'),
