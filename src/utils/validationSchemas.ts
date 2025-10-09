@@ -123,11 +123,16 @@ export const employeeSchema = z.object({
 
   lugarNacimiento: lugarNacimientoSchema,
 
-  fotoUrl: z.string().url('URL de foto no válida').optional(),
+  fotoUrl: z.string().refine((url) => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }, 'URL de foto no válida').optional(),
 
-  sexo: z.enum(['Masculino', 'Femenino'], {
-    message: 'Sexo debe ser Masculino o Femenino'
-  }),
+  sexo: z.enum(['Masculino', 'Femenino']),
 
   numeroFotocheck: z.string()
     .min(1, 'Número de fotocheck es requerido')
@@ -140,9 +145,7 @@ export const employeeSchema = z.object({
     .regex(phoneRegex, 'Teléfono fijo debe tener 7-9 dígitos')
     .optional(),
 
-  estadoCivil: z.enum(['Soltero', 'Casado', 'Divorciado', 'Viudo'], {
-    message: 'Estado civil no válido'
-  }),
+  estadoCivil: z.enum(['Soltero', 'Casado', 'Divorciado', 'Viudo']),
 
   afp: z.string()
     .min(1, 'AFP es requerida')
