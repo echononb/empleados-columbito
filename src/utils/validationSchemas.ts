@@ -123,14 +123,7 @@ export const employeeSchema = z.object({
 
   lugarNacimiento: lugarNacimientoSchema,
 
-  fotoUrl: z.string().refine((url) => {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
-  }, 'URL de foto no válida').optional(),
+  fotoUrl: z.string().optional(),
 
   sexo: z.enum(['Masculino', 'Femenino']),
 
