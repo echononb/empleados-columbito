@@ -125,7 +125,7 @@ export const employeeSchema = z.object({
 
   fotoUrl: z.string().optional(),
 
-  sexo: z.enum(['Masculino', 'Femenino']),
+  sexo: z.string(),
 
   numeroFotocheck: z.string()
     .min(1, 'Número de fotocheck es requerido')
@@ -138,7 +138,7 @@ export const employeeSchema = z.object({
     .regex(phoneRegex, 'Teléfono fijo debe tener 7-9 dígitos')
     .optional(),
 
-  estadoCivil: z.enum(['Soltero', 'Casado', 'Divorciado', 'Viudo']),
+  estadoCivil: z.string(),
 
   afp: z.string()
     .min(1, 'AFP es requerida')
@@ -284,7 +284,7 @@ export const applicantCreateSchema = z.object({
   gradoInstruccion: z.string().min(1, 'Grado requerido'),
   nombreInstitucion: z.string().min(1, 'Institución requerida'),
   anoEgreso: z.number().min(1950).max(new Date().getFullYear()),
-  fuentePostulacion: z.enum(['web', 'referido', 'feria_empleo', 'redes_sociales', 'otro'])
+  fuentePostulacion: z.string()
 });
 
 // Schema para actualización de postulantes
