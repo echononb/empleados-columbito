@@ -251,6 +251,7 @@ const ApplicantList: React.FC = () => {
                 <th>DNI</th>
                 <th>Apellidos y Nombres</th>
                 <th>Puesto de Interés</th>
+                <th>Proyecto</th>
                 <th>Fecha Postulación</th>
                 <th>Estado</th>
                 <th>Fuente</th>
@@ -263,6 +264,7 @@ const ApplicantList: React.FC = () => {
                   <td>{applicant.dni}</td>
                   <td>{`${applicant.apellidoPaterno} ${applicant.apellidoMaterno}, ${applicant.nombres}`}</td>
                   <td>{applicant.puestoInteres}</td>
+                  <td>{applicant.proyectoInteres || 'No especificado'}</td>
                   <td>{formatDate(applicant.fechaPostulacion)}</td>
                   <td>
                     <span className={`status-badge ${getStatusBadgeClass(applicant.status)}`}>

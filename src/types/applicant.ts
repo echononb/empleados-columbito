@@ -33,6 +33,7 @@ export interface Applicant {
 
   // Información Laboral
   puestoInteres: string;
+  proyectoInteres?: string; // Nuevo campo: Proyecto específico al que postula
   experienciaPrevia: string;
   salarioEsperado?: number;
   disponibilidadInmediata: boolean;

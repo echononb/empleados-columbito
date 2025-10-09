@@ -280,6 +280,7 @@ export const applicantCreateSchema = z.object({
   telefonoCelular: z.string().regex(phoneRegex, 'Teléfono inválido'),
   email: z.string().email('Email inválido'),
   puestoInteres: z.string().min(1, 'Puesto requerido'),
+  proyectoInteres: z.string().max(200, 'Proyecto máximo 200 caracteres').optional(),
   experienciaPrevia: z.string().min(1, 'Experiencia requerida'),
   gradoInstruccion: z.string().min(1, 'Grado requerido'),
   nombreInstitucion: z.string().min(1, 'Institución requerida'),

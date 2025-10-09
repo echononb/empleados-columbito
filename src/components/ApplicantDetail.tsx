@@ -198,6 +198,12 @@ const ApplicantDetail: React.FC = () => {
             <label>Puesto de Interés:</label>
             <span>{applicant.puestoInteres}</span>
           </div>
+          {applicant.proyectoInteres && (
+            <div className="info-item">
+              <label>Proyecto al que Postula:</label>
+              <span>{applicant.proyectoInteres}</span>
+            </div>
+          )}
           <div className="info-item">
             <label>Experiencia Previa:</label>
             <span>{applicant.experienciaPrevia}</span>

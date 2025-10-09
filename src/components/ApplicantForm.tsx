@@ -43,6 +43,7 @@ const ApplicantForm: React.FC<ApplicantFormProps> = ({
 
     // Información Laboral
     puestoInteres: applicant?.puestoInteres || '',
+    proyectoInteres: applicant?.proyectoInteres || '',
     experienciaPrevia: applicant?.experienciaPrevia || '',
     salarioEsperado: applicant?.salarioEsperado || '',
     disponibilidadInmediata: applicant?.disponibilidadInmediata ?? true,
@@ -444,18 +445,32 @@ const ApplicantForm: React.FC<ApplicantFormProps> = ({
           <div className="form-section">
             <h3>Información Laboral</h3>
 
-            <div className="form-group">
-              <label htmlFor="puestoInteres">Puesto de Interés *</label>
-              <input
-                type="text"
-                id="puestoInteres"
-                name="puestoInteres"
-                value={formData.puestoInteres}
-                onChange={handleInputChange}
-                className={errors.puestoInteres ? 'error' : ''}
-                placeholder="Ej: Desarrollador Frontend"
-              />
-              {errors.puestoInteres && <span className="error-message">{errors.puestoInteres}</span>}
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="puestoInteres">Puesto de Interés *</label>
+                <input
+                  type="text"
+                  id="puestoInteres"
+                  name="puestoInteres"
+                  value={formData.puestoInteres}
+                  onChange={handleInputChange}
+                  className={errors.puestoInteres ? 'error' : ''}
+                  placeholder="Ej: Desarrollador Frontend"
+                />
+                {errors.puestoInteres && <span className="error-message">{errors.puestoInteres}</span>}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="proyectoInteres">Proyecto al que Postula</label>
+                <input
+                  type="text"
+                  id="proyectoInteres"
+                  name="proyectoInteres"
+                  value={formData.proyectoInteres}
+                  onChange={handleInputChange}
+                  placeholder="Ej: Sistema de Gestión de Empleados"
+                />
+              </div>
             </div>
 
             <div className="form-group">
