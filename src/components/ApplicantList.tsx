@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ApplicantService } from '../services/applicantService';
+import { ProjectService, Project } from '../services/projectService';
 import { Applicant } from '../types/applicant';
 import { ApplicantFilters, ApplicantStats } from '../types/applicant';
 import { Button, Card } from './ui';
@@ -18,6 +19,7 @@ const ApplicantList: React.FC = () => {
   const [stats, setStats] = useState<ApplicantStats | null>(null);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   // Check if user can manage applicants
   const canManage = userRole === 'digitador' || userRole === 'administrador';
@@ -45,7 +47,17 @@ const ApplicantList: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    loadProjects();
   }, []);
+
+  const loadProjects = async () => {
+    try {
+      const projectsData = await ProjectService.getAllProjects();
+      setProjects(projectsData);
+    } catch (error) {
+      logger.error('Error loading projects for applicant list', error);
+    }
+  };
 
   // Filter applicants based on search term and status
   const filteredApplicants = useMemo(() => {
@@ -264,7 +276,15 @@ const ApplicantList: React.FC = () => {
                   <td>{applicant.dni}</td>
                   <td>{`${applicant.apellidoPaterno} ${applicant.apellidoMaterno}, ${applicant.nombres}`}</td>
                   <td>{applicant.puestoInteres}</td>
-                  <td>{applicant.proyectoInteres || 'No especificado'}</td>
+                  <td>
+                    {applicant.proyectoInteres
+                      ? (() => {
+                          const project = projects.find((p: Project) => p.id === applicant.proyectoInteres);
+                          return project ? project.name : 'Proyecto no encontrado';
+                        })()
+                      : 'No especificado'
+                    }
+                  </td>
                   <td>{formatDate(applicant.fechaPostulacion)}</td>
                   <td>
                     <span className={`status-badge ${getStatusBadgeClass(applicant.status)}`}>

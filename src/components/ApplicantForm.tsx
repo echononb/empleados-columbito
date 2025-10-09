@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Applicant, ApplicantStatus } from '../types/applicant';
 import { ApplicantService } from '../services/applicantService';
+import { ProjectService, Project } from '../services/projectService';
 import { Button, Card } from './ui';
 import { useAuth } from '../contexts/AuthContext';
 import logger from '../utils/logger';
@@ -18,6 +19,8 @@ const ApplicantForm: React.FC<ApplicantFormProps> = ({
 }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Información Personal
@@ -62,6 +65,23 @@ const ApplicantForm: React.FC<ApplicantFormProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Load projects for dropdown
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        setLoadingProjects(true);
+        const projectsData = await ProjectService.getAllProjects();
+        setProjects(projectsData);
+      } catch (error) {
+        logger.error('Error loading projects for applicant form', error);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    loadProjects();
+  }, []);
 
   const totalSteps = 4;
 
@@ -462,14 +482,24 @@ const ApplicantForm: React.FC<ApplicantFormProps> = ({
 
               <div className="form-group">
                 <label htmlFor="proyectoInteres">Proyecto al que Postula</label>
-                <input
-                  type="text"
+                <select
                   id="proyectoInteres"
                   name="proyectoInteres"
                   value={formData.proyectoInteres}
                   onChange={handleInputChange}
-                  placeholder="Ej: Sistema de Gestión de Empleados"
-                />
+                  className={errors.proyectoInteres ? 'error' : ''}
+                >
+                  <option value="">Seleccionar proyecto...</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.name} - {project.contrato}
+                    </option>
+                  ))}
+                </select>
+                {errors.proyectoInteres && <span className="error-message">{errors.proyectoInteres}</span>}
+                <small className="help-text">
+                  Selecciona el proyecto específico al que deseas postular
+                </small>
               </div>
             </div>
 

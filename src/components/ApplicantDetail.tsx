@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ApplicantService } from '../services/applicantService';
+import { ProjectService, Project } from '../services/projectService';
 import { Applicant } from '../types/applicant';
 import { Button, Card } from './ui';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,14 +15,25 @@ const ApplicantDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   const canManage = userRole === 'digitador' || userRole === 'administrador';
 
   useEffect(() => {
     if (id) {
       loadApplicant();
+      loadProjects();
     }
   }, [id]);
+
+  const loadProjects = async () => {
+    try {
+      const projectsData = await ProjectService.getAllProjects();
+      setProjects(projectsData);
+    } catch (error) {
+      logger.error('Error loading projects for applicant detail', error);
+    }
+  };
 
   const loadApplicant = async () => {
     if (!id) return;
@@ -201,7 +213,12 @@ const ApplicantDetail: React.FC = () => {
           {applicant.proyectoInteres && (
             <div className="info-item">
               <label>Proyecto al que Postula:</label>
-              <span>{applicant.proyectoInteres}</span>
+              <span>
+                {projects.find(p => p.id === applicant.proyectoInteres)
+                  ? `${projects.find(p => p.id === applicant.proyectoInteres)?.name} - ${projects.find(p => p.id === applicant.proyectoInteres)?.contrato}`
+                  : applicant.proyectoInteres
+                }
+              </span>
             </div>
           )}
           <div className="info-item">
