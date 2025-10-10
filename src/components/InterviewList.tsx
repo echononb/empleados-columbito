@@ -76,6 +76,18 @@ const InterviewList: React.FC = () => {
     return filtered;
   }, [interviews, searchTerm, statusFilter, typeFilter]);
 
+  // Check for applicantId in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const applicantIdFromUrl = urlParams.get('applicantId');
+
+    if (applicantIdFromUrl) {
+      // Filter interviews for specific applicant
+      const applicantInterviews = interviews.filter(i => i.applicantId === applicantIdFromUrl);
+      // You could set a specific filter here if needed
+    }
+  }, [interviews]);
+
   // Helper function to format date and time
   const formatDateTime = (dateTimeString: string) => {
     if (!dateTimeString) return '';

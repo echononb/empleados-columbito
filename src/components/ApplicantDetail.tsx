@@ -214,13 +214,32 @@ const ApplicantDetail: React.FC = () => {
             <div className="info-item">
               <label>Proyecto al que Postula:</label>
               <span>
-                {projects.find(p => p.id === applicant.proyectoInteres)
-                  ? `${projects.find(p => p.id === applicant.proyectoInteres)?.name} - ${projects.find(p => p.id === applicant.proyectoInteres)?.contrato}`
+                {projects.find((p: Project) => p.id === applicant.proyectoInteres)
+                  ? `${projects.find((p: Project) => p.id === applicant.proyectoInteres)?.name} - ${projects.find((p: Project) => p.id === applicant.proyectoInteres)?.contrato}`
                   : applicant.proyectoInteres
                 }
               </span>
             </div>
           )}
+
+          {/* Interview Actions */}
+          <div className="info-item full-width">
+            <label>Acciones de Entrevista:</label>
+            <div className="interview-actions">
+              <Link
+                to={`/interviews/new?applicantId=${applicant.id}`}
+                className="btn btn-primary btn-small"
+              >
+                Programar Entrevista
+              </Link>
+              <Link
+                to={`/interviews?applicantId=${applicant.id}`}
+                className="btn btn-secondary btn-small"
+              >
+                Ver Entrevistas
+              </Link>
+            </div>
+          </div>
           <div className="info-item">
             <label>Experiencia Previa:</label>
             <span>{applicant.experienciaPrevia}</span>

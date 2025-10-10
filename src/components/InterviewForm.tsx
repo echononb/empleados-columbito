@@ -62,6 +62,19 @@ const InterviewForm: React.FC = () => {
     loadApplicant();
   }, [interview.applicantId]);
 
+  // Check for applicantId in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const applicantIdFromUrl = urlParams.get('applicantId');
+
+    if (applicantIdFromUrl && !interview.applicantId) {
+      setInterview(prev => ({
+        ...prev,
+        applicantId: applicantIdFromUrl
+      }));
+    }
+  }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
