@@ -18,6 +18,8 @@ const UserManagement = lazy(() => import('./components/UserManagement'));
 const ApplicantList = lazy(() => import('./components/ApplicantList'));
 const ApplicantForm = lazy(() => import('./components/ApplicantForm'));
 const ApplicantDetail = lazy(() => import('./components/ApplicantDetail'));
+const InterviewList = lazy(() => import('./components/InterviewList'));
+const InterviewForm = lazy(() => import('./components/InterviewForm'));
 
 function AppHeader() {
    const { user, logout, userRole } = useAuth();
@@ -52,6 +54,7 @@ function AppHeader() {
               <li><a href="/projects">Proyectos</a></li>
               <li><a href="/clients">Clientes</a></li>
               <li><a href="/applicants">Postulantes</a></li>
+              <li><a href="/interviews">Entrevistas</a></li>
               {(userRole === 'digitador' || userRole === 'administrador') && (
                 <li><a href="/reports">Reportes</a></li>
               )}
@@ -135,6 +138,21 @@ function AppContent() {
                <Route path="/applicants/:id/edit" element={
                  <ProtectedRoute>
                    <ApplicantForm />
+                 </ProtectedRoute>
+               } />
+               <Route path="/interviews" element={
+                 <ProtectedRoute>
+                   <InterviewList />
+                 </ProtectedRoute>
+               } />
+               <Route path="/interviews/new" element={
+                 <ProtectedRoute>
+                   <InterviewForm />
+                 </ProtectedRoute>
+               } />
+               <Route path="/interviews/:id" element={
+                 <ProtectedRoute>
+                   <InterviewForm />
                  </ProtectedRoute>
                } />
              </Routes>
