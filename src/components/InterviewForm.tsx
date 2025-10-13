@@ -168,7 +168,7 @@ const InterviewForm: React.FC = () => {
         entrevistadorPrincipal: interview.entrevistadorPrincipal!,
         entrevistadoresAdicionales: interview.entrevistadoresAdicionales,
         departamentoEntrevistador: interview.departamentoEntrevistador || '',
-        status: 'programada' as InterviewStatus,
+        status: 'completada' as InterviewStatus,
         duracionEstimada: Number(interview.duracionEstimada!),
         horaInicio: interview.horaInicio,
         horaFin: interview.horaFin,
@@ -257,8 +257,8 @@ const InterviewForm: React.FC = () => {
   return (
     <Card className="interview-form">
       <div className="form-header">
-        <h2>{id ? 'Editar Entrevista' : 'Programar Nueva Entrevista'}</h2>
-        <p>Complete todos los campos requeridos para programar una entrevista</p>
+        <h2>{id ? 'Editar Registro de Entrevista' : 'Registrar Nueva Entrevista'}</h2>
+        <p>Complete todos los campos requeridos para registrar una entrevista realizada</p>
       </div>
 
       <form onSubmit={handleSubmit} className="interview-form-content">
@@ -332,9 +332,9 @@ const InterviewForm: React.FC = () => {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="fechaEntrevista">Fecha y Hora *</label>
+              <label htmlFor="fechaEntrevista">Fecha de la Entrevista *</label>
               <input
-                type="datetime-local"
+                type="date"
                 id="fechaEntrevista"
                 name="fechaEntrevista"
                 value={interview.fechaEntrevista || ''}
@@ -728,7 +728,7 @@ const InterviewForm: React.FC = () => {
             variant="success"
             disabled={loading}
           >
-            {loading ? 'Guardando...' : (id ? 'Actualizar Entrevista' : 'Programar Entrevista')}
+            {loading ? 'Guardando...' : (id ? 'Actualizar Registro' : 'Registrar Entrevista')}
           </Button>
         </div>
       </form>

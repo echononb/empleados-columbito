@@ -156,7 +156,7 @@ const InterviewList: React.FC = () => {
 
         <div className="header-actions">
           <Link to="/interviews/new" className="btn btn-primary">
-            Programar Entrevista
+            Registrar Entrevista
           </Link>
         </div>
       </div>
@@ -169,8 +169,8 @@ const InterviewList: React.FC = () => {
             <p>Total Entrevistas</p>
           </Card>
           <Card className="stat-card">
-            <h3>{stats.programadas}</h3>
-            <p>Programadas</p>
+            <h3>{stats.completadas}</h3>
+            <p>Registradas</p>
           </Card>
           <Card className="stat-card">
             <h3>{stats.completadas}</h3>
@@ -286,20 +286,12 @@ const InterviewList: React.FC = () => {
                       >
                         Ver Detalles
                       </Link>
-                      {canManage && interview.status === 'programada' && (
+                      {canManage && interview.status === 'completada' && (
                         <button
                           className="btn btn-success btn-small"
-                          title="Iniciar entrevista"
+                          title="Ver resultado de entrevista"
                         >
-                          Iniciar
-                        </button>
-                      )}
-                      {canManage && (interview.status === 'programada' || interview.status === 'confirmada') && (
-                        <button
-                          className="btn btn-warning btn-small"
-                          title="Cancelar entrevista"
-                        >
-                          Cancelar
+                          Ver Resultado
                         </button>
                       )}
                     </div>
