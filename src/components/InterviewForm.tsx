@@ -127,7 +127,8 @@ const InterviewForm: React.FC = () => {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!interview.applicantId) newErrors.applicantId = 'Postulante es requerido';
+    if (!interview.applicantDNI) newErrors.applicantDNI = 'DNI del postulante es requerido';
+    if (!interview.applicantName) newErrors.applicantName = 'Nombre del postulante es requerido';
     if (!interview.fechaEntrevista) newErrors.fechaEntrevista = 'Fecha de entrevista es requerida';
     if (!interview.tipoEntrevista) newErrors.tipoEntrevista = 'Tipo de entrevista es requerido';
     if (!interview.entrevistadorPrincipal) newErrors.entrevistadorPrincipal = 'Entrevistador principal es requerido';
@@ -151,12 +152,12 @@ const InterviewForm: React.FC = () => {
       const userId = currentUser ? JSON.parse(currentUser).uid : 'system';
 
       const interviewData: Omit<Interview, 'id'> = {
-        applicantId: interview.applicantId!,
+        applicantId: `temp-${Date.now()}`, // Temporary ID for new applicants
         applicantDNI: interview.applicantDNI!,
         applicantName: interview.applicantName!,
-        applicantEmail: interview.applicantEmail!,
-        applicantPhone: interview.applicantPhone!,
-        puestoInteres: interview.puestoInteres!,
+        applicantEmail: interview.applicantEmail || '',
+        applicantPhone: interview.applicantPhone || '',
+        puestoInteres: interview.puestoInteres || 'Por definir',
         proyectoInteres: interview.proyectoInteres,
         fechaEntrevista: interview.fechaEntrevista!,
         tipoEntrevista: interview.tipoEntrevista as InterviewType,
@@ -215,6 +216,26 @@ const InterviewForm: React.FC = () => {
         window.alert('Entrevista programada exitosamente');
       }
 
+      // Update applicant status if interview was completed with a result
+      if (interviewData.resultado && interviewData.resultado !== 'pendiente') {
+        try {
+          const newStatus = interviewData.resultado === 'positivo' ? 'aprobado' : 'rechazado';
+          await ApplicantService.updateApplicantStatus(
+            interviewData.applicantId,
+            newStatus,
+            userId,
+            `Resultado de entrevista: ${interviewData.resultado}`
+          );
+          logger.info('Applicant status updated based on interview result', {
+            applicantId: interviewData.applicantId,
+            newStatus,
+            interviewResult: interviewData.resultado
+          });
+        } catch (error) {
+          logger.error('Error updating applicant status after interview', error);
+        }
+      }
+
       // Reset form or navigate back
       window.history.back();
     } catch (error) {
@@ -245,44 +266,64 @@ const InterviewForm: React.FC = () => {
         <div className="form-section">
           <h3>Información del Postulante</h3>
 
-          <div className="form-group">
-            <label htmlFor="applicantId">Postulante *</label>
-            <select
-              id="applicantId"
-              name="applicantId"
-              value={interview.applicantId || ''}
-              onChange={handleInputChange}
-              className={errors.applicantId ? 'error' : ''}
-            >
-              <option value="">Seleccionar postulante...</option>
-              {/* This would be populated with applicants that can be interviewed */}
-            </select>
-            {errors.applicantId && <span className="error-message">{errors.applicantId}</span>}
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="applicantDNI">DNI del Postulante *</label>
+              <input
+                type="text"
+                id="applicantDNI"
+                name="applicantDNI"
+                value={interview.applicantDNI || ''}
+                onChange={handleInputChange}
+                className={errors.applicantDNI ? 'error' : ''}
+                placeholder="12345678"
+                maxLength={8}
+              />
+              {errors.applicantDNI && <span className="error-message">{errors.applicantDNI}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="applicantName">Nombre Completo del Postulante *</label>
+              <input
+                type="text"
+                id="applicantName"
+                name="applicantName"
+                value={interview.applicantName || ''}
+                onChange={handleInputChange}
+                className={errors.applicantName ? 'error' : ''}
+                placeholder="Apellidos y Nombres"
+              />
+              {errors.applicantName && <span className="error-message">{errors.applicantName}</span>}
+            </div>
           </div>
 
-          {applicant && (
-            <div className="applicant-info-summary">
-              <h4>Información del Postulante Seleccionado:</h4>
-              <div className="info-grid">
-                <div className="info-item">
-                  <label>DNI:</label>
-                  <span>{applicant.dni}</span>
-                </div>
-                <div className="info-item">
-                  <label>Nombre:</label>
-                  <span>{`${applicant.apellidoPaterno} ${applicant.apellidoMaterno}, ${applicant.nombres}`}</span>
-                </div>
-                <div className="info-item">
-                  <label>Puesto de Interés:</label>
-                  <span>{applicant.puestoInteres}</span>
-                </div>
-                <div className="info-item">
-                  <label>Proyecto:</label>
-                  <span>{applicant.proyectoInteres || 'No especificado'}</span>
-                </div>
-              </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="applicantEmail">Email del Postulante</label>
+              <input
+                type="email"
+                id="applicantEmail"
+                name="applicantEmail"
+                value={interview.applicantEmail || ''}
+                onChange={handleInputChange}
+                placeholder="correo@ejemplo.com"
+              />
             </div>
-          )}
+
+            <div className="form-group">
+              <label htmlFor="applicantPhone">Teléfono del Postulante</label>
+              <input
+                type="tel"
+                id="applicantPhone"
+                name="applicantPhone"
+                value={interview.applicantPhone || ''}
+                onChange={handleInputChange}
+                placeholder="987654321"
+              />
+            </div>
+          </div>
+
+          {/* Manual applicant info entry - no longer using dropdown */}
         </div>
 
         {/* Información de la Entrevista */}
@@ -461,16 +502,210 @@ const InterviewForm: React.FC = () => {
         <div className="form-section">
           <h3>Notas y Observaciones</h3>
 
-          <div className="form-group">
-            <label htmlFor="observaciones">Observaciones</label>
-            <textarea
-              id="observaciones"
-              name="observaciones"
-              value={interview.observaciones || ''}
-              onChange={handleInputChange}
-              rows={4}
-              placeholder="Notas adicionales sobre la entrevista..."
-            />
+          {/* Evaluación y Notas */}
+          <div className="form-section">
+            <h3>Evaluación y Resultados</h3>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="calificacionGeneral">Calificación General (1-10)</label>
+                <input
+                  type="number"
+                  id="calificacionGeneral"
+                  name="calificacionGeneral"
+                  value={interview.calificacionGeneral || ''}
+                  onChange={handleInputChange}
+                  min="1"
+                  max="10"
+                  placeholder="8"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="resultado">Resultado</label>
+                <select
+                  id="resultado"
+                  name="resultado"
+                  value={interview.resultado || ''}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Seleccionar resultado...</option>
+                  <option value="positivo">Positivo</option>
+                  <option value="negativo">Negativo</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="no_asistio">No Asistió</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="fortalezas">Fortalezas</label>
+                <textarea
+                  id="fortalezas"
+                  name="fortalezas"
+                  value={interview.fortalezas || ''}
+                  onChange={handleInputChange}
+                  rows={3}
+                  placeholder="Aspectos positivos del candidato..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="areasMejora">Áreas de Mejora</label>
+                <textarea
+                  id="areasMejora"
+                  name="areasMejora"
+                  value={interview.areasMejora || ''}
+                  onChange={handleInputChange}
+                  rows={3}
+                  placeholder="Aspectos a mejorar del candidato..."
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="observaciones">Observaciones</label>
+              <textarea
+                id="observaciones"
+                name="observaciones"
+                value={interview.observaciones || ''}
+                onChange={handleInputChange}
+                rows={4}
+                placeholder="Notas adicionales sobre la entrevista..."
+              />
+            </div>
+          </div>
+
+          {/* Información Adicional */}
+          <div className="form-section">
+            <h3>Información Adicional</h3>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="pretensionSalarial">Pretensión Salarial (S/.)</label>
+                <input
+                  type="number"
+                  id="pretensionSalarial"
+                  name="pretensionSalarial"
+                  value={interview.pretensionSalarial || ''}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="100"
+                  placeholder="3000"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="montoOfrecido">Monto Ofrecido (S/.)</label>
+                <input
+                  type="number"
+                  id="montoOfrecido"
+                  name="montoOfrecido"
+                  value={interview.montoOfrecido || ''}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="100"
+                  placeholder="2800"
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={interview.llegoAcuerdo || false}
+                    onChange={(e) => setInterview(prev => ({ ...prev, llegoAcuerdo: e.target.checked }))}
+                  />
+                  Llegó a acuerdo salarial
+                </label>
+              </div>
+
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={interview.requiereSegundaEntrevista || false}
+                    onChange={(e) => setInterview(prev => ({ ...prev, requiereSegundaEntrevista: e.target.checked }))}
+                  />
+                  Requiere segunda entrevista
+                </label>
+              </div>
+            </div>
+
+            {interview.requiereSegundaEntrevista && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="fechaSegundaEntrevista">Fecha Segunda Entrevista</label>
+                  <input
+                    type="datetime-local"
+                    id="fechaSegundaEntrevista"
+                    name="fechaSegundaEntrevista"
+                    value={interview.fechaSegundaEntrevista || ''}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="tipoSegundaEntrevista">Tipo Segunda Entrevista</label>
+                  <select
+                    id="tipoSegundaEntrevista"
+                    name="tipoSegundaEntrevista"
+                    value={interview.tipoSegundaEntrevista || ''}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Seleccionar tipo...</option>
+                    <option value="telefonica">Telefónica</option>
+                    <option value="virtual">Virtual</option>
+                    <option value="presencial">Presencial</option>
+                    <option value="tecnica">Técnica</option>
+                    <option value="psicologica">Psicológica</option>
+                    <option value="final">Final</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="viveEn">Vive en</label>
+                <input
+                  type="text"
+                  id="viveEn"
+                  name="viveEn"
+                  value={interview.viveEn || ''}
+                  onChange={handleInputChange}
+                  placeholder="Ciudad o distrito de residencia"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="disponibilidad">Disponibilidad</label>
+                <input
+                  type="text"
+                  id="disponibilidad"
+                  name="disponibilidad"
+                  value={interview.disponibilidad || ''}
+                  onChange={handleInputChange}
+                  placeholder="Horarios disponibles, etc."
+                />
+              </div>
+            </div>
+
+            {interview.llegoAcuerdo && (
+              <div className="form-group">
+                <label htmlFor="fechaInicio">Fecha de Inicio Propuesta</label>
+                <input
+                  type="date"
+                  id="fechaInicio"
+                  name="fechaInicio"
+                  value={interview.fechaInicio || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+            )}
           </div>
         </div>
 

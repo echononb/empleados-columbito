@@ -20,6 +20,7 @@ const ApplicantForm = lazy(() => import('./components/ApplicantForm'));
 const ApplicantDetail = lazy(() => import('./components/ApplicantDetail'));
 const InterviewList = lazy(() => import('./components/InterviewList'));
 const InterviewForm = lazy(() => import('./components/InterviewForm'));
+const InterviewReports = lazy(() => import('./components/InterviewReports'));
 
 function AppHeader() {
    const { user, logout, userRole } = useAuth();
@@ -56,7 +57,10 @@ function AppHeader() {
               <li><a href="/applicants">Postulantes</a></li>
               <li><a href="/interviews">Entrevistas</a></li>
               {(userRole === 'digitador' || userRole === 'administrador') && (
-                <li><a href="/reports">Reportes</a></li>
+                <li><a href="/interview-reports">Reportes de Entrevistas</a></li>
+              )}
+              {(userRole === 'digitador' || userRole === 'administrador') && (
+                <li><a href="/reports">Reportes Generales</a></li>
               )}
               {userRole === 'administrador' && (
                 <li><a href="/users">Usuarios</a></li>
@@ -153,6 +157,16 @@ function AppContent() {
                <Route path="/interviews/:id" element={
                  <ProtectedRoute>
                    <InterviewForm />
+                 </ProtectedRoute>
+               } />
+               <Route path="/interviews/:id/edit" element={
+                 <ProtectedRoute>
+                   <InterviewForm />
+                 </ProtectedRoute>
+               } />
+               <Route path="/interview-reports" element={
+                 <ProtectedRoute requiredRole={['digitador', 'administrador']}>
+                   <InterviewReports />
                  </ProtectedRoute>
                } />
              </Routes>
