@@ -236,6 +236,27 @@ const InterviewForm: React.FC = () => {
         }
       }
 
+      // If interview result is positive, offer to convert to employee
+      if (interviewData.resultado === 'positivo') {
+        const shouldConvert = window.confirm(
+          'La entrevista tuvo un resultado positivo. ¿Desea convertir este postulante en empleado?'
+        );
+
+        if (shouldConvert) {
+          try {
+            const employeeId = await ApplicantService.convertToEmployee(interviewData.applicantId, userId);
+            window.alert('Postulante convertido a empleado exitosamente. Se ha creado un nuevo registro de empleado.');
+            logger.info('Applicant converted to employee after positive interview', {
+              applicantId: interviewData.applicantId,
+              employeeId
+            });
+          } catch (error) {
+            logger.error('Error converting applicant to employee after interview', error);
+            window.alert('Error al convertir el postulante en empleado. El registro de entrevista se guardó correctamente.');
+          }
+        }
+      }
+
       // Reset form or navigate back
       window.history.back();
     } catch (error) {
@@ -259,6 +280,13 @@ const InterviewForm: React.FC = () => {
       <div className="form-header">
         <h2>{id ? 'Editar Registro de Entrevista' : 'Registrar Nueva Entrevista'}</h2>
         <p>Complete todos los campos requeridos para registrar una entrevista realizada</p>
+        <div className="form-info">
+          <span className="info-icon">ℹ️</span>
+          <p>
+            <strong>Flujo de trabajo:</strong> Registre la entrevista realizada con todos los datos del candidato.
+            Si el resultado es positivo, el sistema le ofrecerá convertir automáticamente al postulante en empleado.
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="interview-form-content">
@@ -728,7 +756,7 @@ const InterviewForm: React.FC = () => {
             variant="success"
             disabled={loading}
           >
-            {loading ? 'Guardando...' : (id ? 'Actualizar Registro' : 'Registrar Entrevista')}
+            {loading ? 'Guardando...' : 'Registrar Entrevista y Procesar Resultado'}
           </Button>
         </div>
       </form>
